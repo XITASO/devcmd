@@ -1,0 +1,14 @@
+{
+  "name": "devcmd",
+  "version": "0.0.1",
+  "repository": "https://bitbucket.xitaso.com/scm/xitlib/devcmd.git",
+  "author": "Florian Häglsperger <florian.haeglsperger@xitaso.com>",
+  "license": "MIT",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "devDependencies": {
+    "typescript": "^3.8.3"
+  }
+}
