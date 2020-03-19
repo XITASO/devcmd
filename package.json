@@ -9,6 +9,10 @@
     "build": "tsc"
   },
   "devDependencies": {
+    "@types/node": "^13.9.2",
     "typescript": "^3.8.3"
+  },
+  "dependencies": {
+    "chalk": "^3.0.0"
   }
 }

@@ -1,3 +1,1 @@
-export function foo() {
-  return "Hello world!";
-}
+export { exec, execParallel } from "./process";
