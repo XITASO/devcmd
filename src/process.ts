@@ -73,7 +73,7 @@ function unwrapResults(results: Result[]): void {
   const errs = results.filter(isErr).map(r => r.err);
 
   // For now, only rethrow the first error to get at least one correct stack trace.
-  if (errs.length > 1) throw errs[0];
+  if (errs.length >= 1) throw errs[0];
 }
 
 async function execInternal(
