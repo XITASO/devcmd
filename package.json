@@ -6,6 +6,7 @@
   "license": "MIT",
   "private": true,
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
     "clean": "rimraf ./dist",
     "build": "yarn clean && tsc",
