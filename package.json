@@ -9,7 +9,7 @@
   "scripts": {
     "clean": "rimraf ./dist",
     "build": "yarn clean && tsc",
-    "postinstall": "yarn build"
+    "postinstall": "yarn install --production=false && yarn build"
   },
   "devDependencies": {
     "@types/node": "^13.9.2",
