@@ -1,0 +1,7 @@
+{
+  "name": "devcmd-examples_single-package-json",
+  "private": true,
+  "devDependencies": {
+    "devcmd": "^0.0.1"
+  }
+}
