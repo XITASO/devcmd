@@ -9,8 +9,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "clean": "rimraf ./dist",
-    "build": "yarn clean && tsc",
-    "postinstall": "yarn install --ignore-scripts --production=false && yarn build"
+    "build": "yarn clean && tsc"
   },
   "devDependencies": {
     "@types/node": "^13.9.2",
