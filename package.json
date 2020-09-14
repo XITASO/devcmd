@@ -7,6 +7,9 @@
   "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "devcmd": "bin/devcmd.js"
+  },
   "dependencies": {
     "chalk": "^3.0.0",
     "devcmd-cli": "https://bitbucket.xitaso.com/scm/xitlib/devcmd-cli.git"
