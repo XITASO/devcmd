@@ -12,7 +12,7 @@
     "devcmd-cli": "https://bitbucket.xitaso.com/scm/xitlib/devcmd-cli.git"
   },
   "devDependencies": {
-    "@types/node": "^13.9.2",
+    "@types/node": "12",
     "prettier": "^2.1.1",
     "rimraf": "^3.0.2",
     "typescript": "^3.8.3"
