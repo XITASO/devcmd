@@ -18,6 +18,7 @@
     "typescript": "^3.8.3"
   },
   "dependencies": {
-    "chalk": "^3.0.0"
+    "chalk": "^3.0.0",
+    "devcmd-cli": "https://bitbucket.xitaso.com/scm/xitlib/devcmd-cli.git"
   }
 }
