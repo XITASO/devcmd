@@ -1,26 +1,35 @@
+import { execFileSync } from "child_process";
 import { promises as fs } from "fs";
-import * as path from "path";
-
-// TODO: this WIP code was moved over from the devcmd-cli part
+import path from "path";
 
 const devCmdsDirName = "dev_cmds";
 
-// export async function devcmd(): Promise<void> {
-//   const devCmdsDir = await findClosestDevCmdsDir(process.cwd());
+export function devcmd(...args: string[]) {
+  assertInDevCmdsDir();
 
-//   const [_, __, scriptName, ...scriptArgs] = process.argv;
-//   // TODO: validate args (e.g. missing scriptName etc.)
-//   await findAndRunScript(devCmdsDir, scriptName, scriptArgs);
-// }
-
-async function findClosestDevCmdsDir(startDir: string): Promise<string> {
-  for (const dir of iterateAncestorDirsToRoot(startDir)) {
-    const candidate = path.resolve(dir, devCmdsDirName);
-    if (await isDir(candidate)) return candidate;
+  if (!args || args.length === 0) {
+    abort("No script specified.");
   }
-  throw new Error(
-    `No ${devCmdsDirName} directory found in CWD or any parent directories! (CWD=${process.cwd()})`
-  );
+
+  const [scriptName, ...scriptArgs] = args;
+  findAndRunScript(process.cwd(), scriptName, scriptArgs).catch((reason) => {
+    const message = reason instanceof Error ? reason.message : `${reason}`;
+    abort(message);
+  });
+}
+
+function assertInDevCmdsDir() {
+  const cwd = process.cwd();
+
+  if (path.basename(cwd) !== devCmdsDirName) {
+    const message = `The devcmd function must be run inside the ${devCmdsDirName} directory, but CWD is: ${cwd}`;
+    abort(message);
+  }
+}
+
+function abort(message: string, exitCode: number = 1): never {
+  console.error(message);
+  process.exit(exitCode);
 }
 
 async function isDir(path: string): Promise<boolean> {
@@ -43,28 +52,13 @@ async function isFile(path: string): Promise<boolean> {
   }
 }
 
-function* iterateAncestorDirsToRoot(
-  startDir: string
-): IterableIterator<string> {
-  let dir = path.normalize(startDir);
-  while (true) {
-    yield dir;
-
-    const parentDir = path.dirname(dir);
-    if (dir === parentDir) break;
-    dir = parentDir;
-  }
-}
-
-async function findAndRunScript(
-  devCmdsDir: string,
-  scriptName: string,
-  scriptArgs: string[]
-): Promise<void> {
-  {
-    const scriptFilepath = path.join(devCmdsDir, `${scriptName}.js`);
-    if (await isFile(scriptFilepath)) {
-      // TODO run `node scriptFilepath ...scriptArgs`
-    }
+async function findAndRunScript(devCmdsDir: string, commandName: string, commandArgs: string[]): Promise<void> {
+  const scriptFilepath = path.join(devCmdsDir, `${commandName}.js`);
+  if (await isFile(scriptFilepath)) {
+    // TODO: use spawn or so instead
+    execFileSync("node", [scriptFilepath, ...commandArgs], { stdio: "inherit" });
+  } else {
+    const message = `No script file found for command ${commandName}`;
+    throw new Error(message);
   }
 }
