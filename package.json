@@ -10,6 +10,10 @@
   "bin": {
     "devcmd": "bin/devcmd.js"
   },
+  "files": [
+    "/bin",
+    "/dist"
+  ],
   "dependencies": {
     "chalk": "^3.0.0",
     "devcmd-cli": "https://bitbucket.xitaso.com/scm/xitlib/devcmd-cli.git"
@@ -22,6 +26,7 @@
   },
   "scripts": {
     "clean": "rimraf ./dist",
-    "build": "yarn clean && tsc"
+    "build": "yarn clean && tsc",
+    "start-verdaccio-container": "docker run -it --rm --name verdaccio -p 4873:4873 verdaccio/verdaccio"
   }
 }
