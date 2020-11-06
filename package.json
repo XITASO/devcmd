@@ -1,7 +1,7 @@
 {
   "name": "devcmd",
   "version": "0.0.1",
-  "repository": "https://bitbucket.xitaso.com/scm/xitlib/devcmd.git",
+  "repository": "https://github.com/XITASO/devcmd",
   "author": "XITASO GmbH",
   "license": "MIT",
   "private": true,
