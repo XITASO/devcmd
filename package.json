@@ -1,7 +1,8 @@
 {
   "private": true,
   "workspaces": [
-    "packages/devcmd"
+    "packages/devcmd",
+    "packages/devcmd-cli"
   ],
   "devDependencies": {
     "prettier": "^2.2.0"

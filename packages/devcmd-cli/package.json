@@ -1,0 +1,24 @@
+{
+  "name": "devcmd-cli",
+  "version": "0.0.1",
+  "repository": "https://github.com/XITASO/devcmd-cli",
+  "author": "XITASO GmbH",
+  "license": "MIT",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "devcmd": "bin/devcmd.js"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "12",
+    "prettier": "^2.1.1",
+    "rimraf": "^3.0.2",
+    "typescript": "^3.8.3"
+  },
+  "scripts": {
+    "clean": "rimraf ./dist",
+    "build": "yarn clean && tsc"
+  }
+}
