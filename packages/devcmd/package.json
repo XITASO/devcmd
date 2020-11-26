@@ -4,7 +4,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/XITASO/devcmd.git",
-    "directory": "packages/devcmd-cli"
+    "directory": "packages/devcmd"
   },
   "homepage": "https://github.com/XITASO/devcmd#readme",
   "author": "XITASO GmbH",
