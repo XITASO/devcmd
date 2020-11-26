@@ -42,7 +42,7 @@ export async function execParallel(
       await Promise.all([
         ...Object.entries(processEntries).map(([id, processInfo]) =>
           wrapResult(() => execInternal(processInfo, chalk.cyan(`<${id}> `)))
-        )
+        ),
       ])
     );
   } finally {
@@ -70,27 +70,18 @@ async function wrapResult(func: () => Promise<void>): Promise<Result> {
 }
 
 function unwrapResults(results: Result[]): void {
-  const errs = results.filter(isErr).map(r => r.err);
+  const errs = results.filter(isErr).map((r) => r.err);
 
   // For now, only rethrow the first error to get at least one correct stack trace.
   if (errs.length >= 1) throw errs[0];
 }
 
-async function execInternal(
-  processInfo: ProcessInfo,
-  logPrefix: string
-): Promise<void> {
+async function execInternal(processInfo: ProcessInfo, logPrefix: string): Promise<void> {
   const withPrefix = (line: string) => `${logPrefix}${line}`;
-  const consoleLog = (line: string, ...params: any[]) =>
-    console.log(withPrefix(line), ...params);
-  const consoleError = (line: string, ...params: any[]) =>
-    console.error(withPrefix(line), ...params);
+  const consoleLog = (line: string, ...params: any[]) => console.log(withPrefix(line), ...params);
+  const consoleError = (line: string, ...params: any[]) => console.error(withPrefix(line), ...params);
 
-  consoleError(
-    "Starting process:",
-    processInfo.command,
-    JSON.stringify(processInfo.args)
-  );
+  consoleError("Starting process:", processInfo.command, JSON.stringify(processInfo.args));
 
   const options = processInfo.options ?? {};
 
@@ -98,22 +89,17 @@ async function execInternal(
     cwd: options.cwd,
     env: {
       // Pass chalk's color support down to the child process
-      FORCE_COLOR: chalk.supportsColor
-        ? chalk.supportsColor.level.toString()
-        : "0",
+      FORCE_COLOR: chalk.supportsColor ? chalk.supportsColor.level.toString() : "0",
 
-      ...(options.env ?? process.env)
-    }
+      ...(options.env ?? process.env),
+    },
   });
 
-  await Promise.all([
-    logStream(childProcess.stdout, consoleLog),
-    logStream(childProcess.stderr, consoleError)
-  ]);
+  await Promise.all([logStream(childProcess.stdout, consoleLog), logStream(childProcess.stderr, consoleError)]);
 
   const code = await new Promise((resolve, reject) => {
-    childProcess.on("error", err => reject(err));
-    childProcess.on("exit", code => resolve(code));
+    childProcess.on("error", (err) => reject(err));
+    childProcess.on("exit", (code) => resolve(code));
   });
 
   if (code !== 0) {
@@ -125,13 +111,10 @@ async function execInternal(
   consoleError(`Process '${processInfo.command}' exited successfully.`);
 }
 
-async function logStream(
-  stream: Readable,
-  log: (message: string) => void
-): Promise<void> {
+async function logStream(stream: Readable, log: (message: string) => void): Promise<void> {
   const lines = readline.createInterface({
     input: stream,
-    crlfDelay: Infinity // Required to support Windows newlines
+    crlfDelay: Infinity, // Required to support Windows newlines
   });
 
   for await (const line of lines) {

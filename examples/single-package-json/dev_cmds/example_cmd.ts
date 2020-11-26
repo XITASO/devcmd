@@ -5,20 +5,20 @@ import { devcmd } from "devcmd";
 
   await devcmd.exec({
     command: "node",
-    args: ["-v"]
+    args: ["-v"],
   });
 
   await devcmd.execParallel({
     nodeVersion: {
       command: "node",
-      args: ["-v"]
+      args: ["-v"],
     },
     gitVersion: {
       command: "git",
-      args: ["--version"]
-    }
+      args: ["--version"],
+    },
   });
-})().catch(e => {
+})().catch((e) => {
   console.error(e);
   process.exit(1);
 });

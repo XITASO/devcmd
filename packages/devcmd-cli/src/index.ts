@@ -19,9 +19,7 @@ export async function devcmdCli(): Promise<void> {
     }
   }
   // TODO: proper error handling
-  abort(
-    `No ${devCmdsDirName} directory found in CWD or any parent directories.`
-  );
+  abort(`No ${devCmdsDirName} directory found in CWD or any parent directories.`);
 }
 
 function abort(message: string, exitCode: number = 1): never {
@@ -29,9 +27,7 @@ function abort(message: string, exitCode: number = 1): never {
   process.exit(exitCode);
 }
 
-function* iterateAncestorDirsToRoot(
-  startDir: string
-): IterableIterator<string> {
+function* iterateAncestorDirsToRoot(startDir: string): IterableIterator<string> {
   let dir = path.normalize(startDir);
   while (true) {
     yield dir;

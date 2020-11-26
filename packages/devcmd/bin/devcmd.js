@@ -4,7 +4,7 @@
 
 const { devcmdCli } = require("devcmd-cli");
 
-devcmdCli().catch(err => {
+devcmdCli().catch((err) => {
   console.error("Uncaught promise rejection:", err);
   process.exit(1);
 });
