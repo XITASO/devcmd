@@ -16,7 +16,7 @@
   ],
   "dependencies": {
     "chalk": "^3.0.0",
-    "devcmd-cli": "https://bitbucket.xitaso.com/scm/xitlib/devcmd-cli.git"
+    "devcmd-cli": "0.0.1"
   },
   "devDependencies": {
     "@types/node": "12",
