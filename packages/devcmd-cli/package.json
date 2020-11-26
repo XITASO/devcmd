@@ -9,7 +9,6 @@
   "homepage": "https://github.com/XITASO/devcmd#readme",
   "author": "XITASO GmbH",
   "license": "MIT",
-  "private": true,
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
