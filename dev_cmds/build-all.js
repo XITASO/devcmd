@@ -3,26 +3,24 @@
 const { exec } = require("devcmd");
 const { YARN_COMMAND } = require("./utils/commands");
 const { repoRoot } = require("./utils/directories");
+const { runAsyncMain } = require("./utils/run_utils");
 
-(async () => {
-  try {
-    await exec({
-      command: YARN_COMMAND,
-      args: ["workspace", "devcmd-cli", "build"],
-      options: {
-        cwd: repoRoot,
-      },
-    });
+async function main() {
+  await exec({
+    command: YARN_COMMAND,
+    args: ["workspace", "devcmd-cli", "build"],
+    options: {
+      cwd: repoRoot,
+    },
+  });
 
-    await exec({
-      command: YARN_COMMAND,
-      args: ["workspace", "devcmd", "build"],
-      options: {
-        cwd: repoRoot,
-      },
-    });
-  } catch (e) {
-    console.error(e);
-    process.exit(1);
-  }
-})();
+  await exec({
+    command: YARN_COMMAND,
+    args: ["workspace", "devcmd", "build"],
+    options: {
+      cwd: repoRoot,
+    },
+  });
+}
+
+runAsyncMain(main);
