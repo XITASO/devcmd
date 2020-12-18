@@ -2,3 +2,9 @@ node_modules
 tsconfig.tsbuildinfo
 yarn-error.log
 dist/
+
+# locally packed npm packages
+*.tgz
+
+# local docker mount dir for integration tests
+/docker-mount/

@@ -1,6 +1,7 @@
 {
   "private": true,
   "dependencies": {
-    "devcmd": "^0.0.1"
+    "devcmd": "^0.0.1",
+    "fs-extra": "^9.0.1"
   }
 }
