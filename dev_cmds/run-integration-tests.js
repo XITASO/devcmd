@@ -16,7 +16,7 @@ const { exec } = require("devcmd");
 const path = require("path");
 const fs = require("fs-extra");
 const { red, green, inverse } = require("kleur/colors");
-const { DOCKER_COMMAND, NPM_COMMAND } = require("./utils/commands");
+const { DEVCMD_COMMAND, DOCKER_COMMAND, NPM_COMMAND } = require("./utils/commands");
 const { repoRoot } = require("./utils/directories");
 const { runAsyncMain } = require("./utils/run_utils");
 const { execToString } = require("./utils/exec_process");
@@ -34,7 +34,7 @@ const dockerMountDir = path.resolve(repoRoot, "docker-mount");
 
 async function main() {
   await exec({
-    command: "devcmd",
+    command: DEVCMD_COMMAND,
     args: ["build-all"],
   });
 
