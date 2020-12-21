@@ -56,7 +56,8 @@ async function runInDevCmdsDir(dirPath: string) {
   const argString = args.map((s) => `"${s}"`).join(",");
 
   // TODO: use spawn or so instead
-  execFileSync("node", ["-e", `require('devcmd').devcmd(${argString})`], {
+  // we're using `npx` to launch node so that it automatically augments the PATH with the relevant `node_modules/.bin` dir(s)
+  execFileSync("npx", ["node", "-e", `require('devcmd').devcmd(${argString})`], {
     cwd: dirPath,
     stdio: "inherit",
   });

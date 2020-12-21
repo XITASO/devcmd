@@ -52,13 +52,24 @@ async function isFile(path: string): Promise<boolean> {
   }
 }
 
+const scriptRunners = [
+  { extension: "ts", launcher: "ts-node" },
+  { extension: "js", launcher: "node" },
+];
+
 async function findAndRunScript(devCmdsDir: string, commandName: string, commandArgs: string[]): Promise<void> {
-  const scriptFilepath = path.join(devCmdsDir, `${commandName}.js`);
-  if (await isFile(scriptFilepath)) {
-    // TODO: use spawn or so instead
-    execFileSync("node", [scriptFilepath, ...commandArgs], { stdio: "inherit" });
-  } else {
-    const message = `No script file found for command ${commandName}`;
-    throw new Error(message);
+  for (const { extension, launcher } of scriptRunners) {
+    const scriptFilepath = path.join(devCmdsDir, `${commandName}.${extension}`);
+    if (await isFile(scriptFilepath)) {
+      // TODO: use spawn or so instead
+      execFileSync("npx", [launcher, scriptFilepath, ...commandArgs], { stdio: "inherit" });
+      return;
+    }
   }
+
+  const scriptFileCandidates = scriptRunners.map(({ extension }) => `${commandName}.${extension}`);
+  const message = `No script file found for command '${commandName}'.
+    ${devCmdsDirName} dir path: ${devCmdsDir}
+    Script files tried: ${scriptFileCandidates.join(", ")}`;
+  throw new Error(message);
 }
