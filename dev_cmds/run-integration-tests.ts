@@ -1,25 +1,21 @@
-"use strict";
-
 /**
  * This script runs the integration tests for devcmd (and devcmd-cli). Currently,
- * this means mostly: building the package (not included yet), publishing to a local
+ * this means mostly: building the package, publishing to a local
  * npm repository, installing devcmd-cli, and installing devcmd in the examples.
  *
  * Some possible next steps:
- * - build the packages at the start
- * - actually run some dev_cmds in the tests
  * - use a test framework (e.g. jest) to wrap the tests (for reporting etc.)
  * - extract some common functionality
  */
 
-const { exec } = require("devcmd");
-const path = require("path");
-const fs = require("fs-extra");
-const { red, green, inverse } = require("kleur/colors");
-const { DEVCMD_COMMAND, DOCKER_COMMAND, NPM_COMMAND } = require("./utils/commands");
-const { repoRoot } = require("./utils/directories");
-const { runAsyncMain } = require("./utils/run_utils");
-const { execToString } = require("./utils/exec_process");
+import { exec } from "devcmd";
+import path from "path";
+import fs from "fs-extra";
+import { red, green, inverse } from "kleur/colors";
+import { DEVCMD_COMMAND, DOCKER_COMMAND, NPM_COMMAND } from "./utils/commands";
+import { repoRoot } from "./utils/directories";
+import { runAsyncMain } from "./utils/run_utils";
+import { execToString } from "./utils/exec_process";
 
 const VERDACCIO_CONTAINER_NAME = "devcmd_verdaccio";
 const VERDACCIO_STORAGE_VOLUME_NAME = "devcmd_verdaccio_storage";
@@ -110,11 +106,11 @@ async function main() {
     args: ["commit", VERDACCIO_CONTAINER_NAME, tempImageName],
   });
 
-  await testSinglePackageJsonExample(tempImageName, packedDevcmdCli, packedDevcmd);
-  await testMultiplePackageJsonsExample(tempImageName, packedDevcmdCli, packedDevcmd);
+  await testSinglePackageJsonExample(tempImageName, packedDevcmdCli);
+  await testMultiplePackageJsonsExample(tempImageName, packedDevcmdCli);
 }
 
-async function runWithDevcmdContainer(tempImageName, actions) {
+async function runWithDevcmdContainer(tempImageName: string, actions: (containerName: string) => Promise<void>) {
   const containerName = `devcmd_test_${Date.now()}`;
 
   try {
@@ -143,7 +139,7 @@ async function runWithDevcmdContainer(tempImageName, actions) {
   }
 }
 
-async function installDevcmdCliGlobally(containerName, devcmdCliInfo) {
+async function installDevcmdCliGlobally(containerName: string, devcmdCliInfo: NpmPackResult) {
   await exec({
     command: DOCKER_COMMAND,
     args: [
@@ -161,7 +157,7 @@ async function installDevcmdCliGlobally(containerName, devcmdCliInfo) {
   });
 }
 
-async function testSinglePackageJsonExample(tempImageName, devcmdCliInfo) {
+async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo: NpmPackResult) {
   await runWithDevcmdContainer(tempImageName, async (containerName) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
 
@@ -216,7 +212,7 @@ async function testSinglePackageJsonExample(tempImageName, devcmdCliInfo) {
   });
 }
 
-async function testMultiplePackageJsonsExample(tempImageName, devcmdCliInfo) {
+async function testMultiplePackageJsonsExample(tempImageName: string, devcmdCliInfo: NpmPackResult) {
   await runWithDevcmdContainer(tempImageName, async (containerName) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
 
@@ -277,11 +273,7 @@ async function testMultiplePackageJsonsExample(tempImageName, devcmdCliInfo) {
   });
 }
 
-/**
- * @param {number} ms time to delay in milliseconds
- * @returns {Promise<void>}
- */
-function delay(ms) {
+function delay(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve();
@@ -289,12 +281,14 @@ function delay(ms) {
   });
 }
 
-/**
- *
- * @param {string} packageDir path of dir containing package.json
- * @returns {Promise<{name: string, version: string, packedFileName: string, packedFilePath: string}>}
- */
-async function npmPack(packageDir) {
+interface NpmPackResult {
+  name: string;
+  version: string;
+  packedFileName: string;
+  packedFilePath: string;
+}
+
+async function npmPack(packageDir: string): Promise<NpmPackResult> {
   const packageJson = await require(path.resolve(packageDir, "package.json"));
   const name = packageJson["name"];
   const version = packageJson["version"];
@@ -309,11 +303,7 @@ async function npmPack(packageDir) {
   return { name, version, packedFileName, packedFilePath };
 }
 
-/**
- * @param {string} path
- * @returns {Promise<boolean>}
- */
-async function isFile(path) {
+async function isFile(path: string): Promise<boolean> {
   try {
     const info = await fs.stat(path);
     return info.isFile();

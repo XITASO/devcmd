@@ -1,9 +1,7 @@
-"use strict";
-
-const { exec } = require("devcmd");
-const { YARN_COMMAND } = require("./utils/commands");
-const { repoRoot } = require("./utils/directories");
-const { runAsyncMain } = require("./utils/run_utils");
+import { exec } from "devcmd";
+import { YARN_COMMAND } from "./utils/commands";
+import { repoRoot } from "./utils/directories";
+import { runAsyncMain } from "./utils/run_utils";
 
 async function main() {
   await exec({
