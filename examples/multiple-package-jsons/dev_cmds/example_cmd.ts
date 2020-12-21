@@ -1,20 +1,20 @@
-import { devcmd } from "devcmd";
+import { exec, execParallel } from "devcmd";
 
 (async () => {
   console.log("Example command for multiple-package-jsons example");
 
-  await devcmd.exec({
+  await exec({
     command: "node",
     args: ["-v"],
   });
 
-  await devcmd.execParallel({
+  await execParallel({
     nodeVersion: {
       command: "node",
       args: ["-v"],
     },
-    gitVersion: {
-      command: "git",
+    npmVersion: {
+      command: "npm",
       args: ["--version"],
     },
   });
