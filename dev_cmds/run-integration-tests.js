@@ -20,40 +20,46 @@ const { repoRoot } = require("./utils/directories");
 const { runAsyncMain } = require("./utils/run_utils");
 
 const VERDACCIO_CONTAINER_NAME = "devcmd_verdaccio";
+const VERDACCIO_STORAGE_VOLUME_NAME = "devcmd_verdaccio_storage";
+const LOCAL_REGISTRY_URL = "http://0.0.0.0:4873";
+
+const packagesDir = path.resolve(repoRoot, "packages");
+const devcmdCliPackageDir = path.resolve(packagesDir, "devcmd-cli");
+const devcmdPackageDir = path.resolve(packagesDir, "devcmd");
+
+const verdaccioConfigDir = path.resolve(repoRoot, "verdaccio");
+const dockerMountDir = path.resolve(repoRoot, "docker-mount");
 
 async function main() {
-  const packagesDir = path.resolve(repoRoot, "packages");
-  const devcmdCliPackageDir = path.resolve(packagesDir, "devcmd-cli");
-  const devcmdPackageDir = path.resolve(packagesDir, "devcmd");
-
-  const verdaccioConfigDir = path.resolve(repoRoot, "verdaccio");
-  const dockerMountDir = path.resolve(repoRoot, "docker-mount");
   await fs.remove(dockerMountDir);
 
-  await exec({
-    command: NPM_COMMAND,
-    args: ["pack"],
-    options: { cwd: devcmdCliPackageDir },
-  });
-  await exec({
-    command: NPM_COMMAND,
-    args: ["pack"],
-    options: { cwd: devcmdPackageDir },
-  });
+  const packedDevcmdCli = await npmPack(devcmdCliPackageDir);
+  const packedDevcmd = await npmPack(devcmdPackageDir);
 
+  console.log("preparing docker mount");
   await fs.mkdirp(dockerMountDir);
-  await fs.copy(
-    path.resolve(repoRoot, "packages/devcmd-cli/devcmd-cli-0.0.1.tgz"), // TODO: flexibly find the tgz files
-    dockerMountDir + "/devcmd-cli-0.0.1.tgz"
-  );
-  await fs.copy(path.resolve(repoRoot, "packages/devcmd/devcmd-0.0.1.tgz"), dockerMountDir + "/devcmd-0.0.1.tgz");
+  await fs.copy(packedDevcmdCli.packedFilePath, path.join(dockerMountDir, packedDevcmdCli.packedFileName));
+  await fs.copy(packedDevcmd.packedFilePath, path.join(dockerMountDir, packedDevcmd.packedFileName));
 
+  console.log("cleaning up container and volume");
   try {
     await exec({
       command: DOCKER_COMMAND,
       args: ["rm", "--force", VERDACCIO_CONTAINER_NAME],
     });
   } catch {}
+
+  try {
+    await exec({
+      command: DOCKER_COMMAND,
+      args: ["volume", "rm", "--force", VERDACCIO_STORAGE_VOLUME_NAME],
+    });
+  } catch {}
+
+  await exec({
+    command: DOCKER_COMMAND,
+    args: ["volume", "create", VERDACCIO_STORAGE_VOLUME_NAME],
+  });
 
   await exec({
     command: DOCKER_COMMAND,
@@ -62,6 +68,7 @@ async function main() {
       "-d",
       ...["-v", `${dockerMountDir}:/devcmd_install`],
       ...["-v", `${verdaccioConfigDir}:/verdaccio/conf`],
+      ...["-v", `${VERDACCIO_STORAGE_VOLUME_NAME}:/verdaccio/storage`],
       ...["--name", VERDACCIO_CONTAINER_NAME],
       "verdaccio/verdaccio:4",
     ],
@@ -78,10 +85,9 @@ async function main() {
       "-c",
       [
         "cd /devcmd_install",
-        "export LOCAL_REGISTRY='http://0.0.0.0:4873'",
-        "npx npm-auth-to-token -u test -p test -e test@test.com -r $LOCAL_REGISTRY", // TODO: do we want to keep using npm-auth-to-token?
-        "npm --registry $LOCAL_REGISTRY publish devcmd-cli-0.0.1.tgz",
-        "npm --registry $LOCAL_REGISTRY publish devcmd-0.0.1.tgz",
+        `npx npm-auth-to-token -u test -p test -e test@test.com -r ${LOCAL_REGISTRY_URL}`, // TODO: do we want to keep using npm-auth-to-token?
+        `npm --registry ${LOCAL_REGISTRY_URL} publish ${packedDevcmdCli.packedFileName}`,
+        `npm --registry ${LOCAL_REGISTRY_URL} publish ${packedDevcmd.packedFileName}`,
       ].join(" && "),
     ],
   });
@@ -97,20 +103,42 @@ async function main() {
     args: ["commit", VERDACCIO_CONTAINER_NAME, tempImageName],
   });
 
-  await testGlobalDevcmdInstallation(tempImageName);
-  await testSinglePackageJsonExample(tempImageName);
-  await testMultiplePackageJsonsExample(tempImageName);
+  await testGlobalDevcmdInstallation(tempImageName, packedDevcmdCli, packedDevcmd);
+  await testSinglePackageJsonExample(tempImageName, packedDevcmdCli, packedDevcmd);
+  await testMultiplePackageJsonsExample(tempImageName, packedDevcmdCli, packedDevcmd);
 }
 
-async function testGlobalDevcmdInstallation(tempImageName) {
+async function runWithDevcmdContainer(tempImageName, actions) {
   const containerName = `devcmd_test_${Date.now()}`;
 
   try {
     await exec({
       command: DOCKER_COMMAND,
-      args: ["run", "-d", "--name", containerName, tempImageName],
+      args: [
+        "run",
+        "-d",
+        ...["-v", `${verdaccioConfigDir}:/verdaccio/conf`],
+        ...["-v", `${VERDACCIO_STORAGE_VOLUME_NAME}:/verdaccio/storage`],
+        ...["--name", containerName],
+        tempImageName,
+      ],
     });
 
+    await delay(2000);
+
+    await actions(containerName);
+  } finally {
+    try {
+      await exec({
+        command: DOCKER_COMMAND,
+        args: ["rm", "--force", containerName],
+      });
+    } catch {}
+  }
+}
+
+async function testGlobalDevcmdInstallation(tempImageName, devcmdCliInfo, devcmdInfo) {
+  await runWithDevcmdContainer(tempImageName, async (containerName) => {
     await exec({
       command: DOCKER_COMMAND,
       args: [
@@ -122,29 +150,15 @@ async function testGlobalDevcmdInstallation(tempImageName) {
           "mkdir ~/.npm-global",
           "npm config set prefix '~/.npm-global'",
           "export PATH=~/.npm-global/bin:$PATH",
-          "npm install -g devcmd-cli",
+          `npm --registry ${LOCAL_REGISTRY_URL} install -g ${devcmdCliInfo.name}@${devcmdCliInfo.version}`,
         ].join(" && "),
       ],
     });
-  } finally {
-    try {
-      await exec({
-        command: DOCKER_COMMAND,
-        args: ["rm", "--force", containerName],
-      });
-    } catch {}
-  }
+  });
 }
 
 async function testSinglePackageJsonExample(tempImageName) {
-  const containerName = `devcmd_test_${Date.now()}`;
-
-  try {
-    await exec({
-      command: DOCKER_COMMAND,
-      args: ["run", "-d", "--name", containerName, tempImageName],
-    });
-
+  await runWithDevcmdContainer(tempImageName, async (containerName) => {
     await exec({
       command: DOCKER_COMMAND,
       args: ["exec", containerName, "sh", "-c", ["mkdir /tmp/devcmd_test"].join(" && ")],
@@ -167,28 +181,14 @@ async function testSinglePackageJsonExample(tempImageName) {
         containerName,
         "sh",
         "-c",
-        ["cd /tmp/devcmd_test/single-package-json", "npm install"].join(" && "),
+        ["cd /tmp/devcmd_test/single-package-json", `npm --registry ${LOCAL_REGISTRY_URL} install`].join(" && "),
       ],
     });
-  } finally {
-    try {
-      await exec({
-        command: DOCKER_COMMAND,
-        args: ["rm", "--force", containerName],
-      });
-    } catch {}
-  }
+  });
 }
 
 async function testMultiplePackageJsonsExample(tempImageName) {
-  const containerName = `devcmd_test_${Date.now()}`;
-
-  try {
-    await exec({
-      command: DOCKER_COMMAND,
-      args: ["run", "-d", "--name", containerName, tempImageName],
-    });
-
+  await runWithDevcmdContainer(tempImageName, async (containerName) => {
     await exec({
       command: DOCKER_COMMAND,
       args: ["exec", containerName, "sh", "-c", ["mkdir /tmp/devcmd_test"].join(" && ")],
@@ -211,17 +211,12 @@ async function testMultiplePackageJsonsExample(tempImageName) {
         containerName,
         "sh",
         "-c",
-        ["cd /tmp/devcmd_test/multiple-package-jsons/dev_cmds", "npm install"].join(" && "),
+        ["cd /tmp/devcmd_test/multiple-package-jsons/dev_cmds", `npm --registry ${LOCAL_REGISTRY_URL} install`].join(
+          " && "
+        ),
       ],
     });
-  } finally {
-    try {
-      await exec({
-        command: DOCKER_COMMAND,
-        args: ["rm", "--force", containerName],
-      });
-    } catch {}
-  }
+  });
 }
 
 /**
@@ -234,6 +229,40 @@ function delay(ms) {
       resolve();
     }, ms);
   });
+}
+
+/**
+ *
+ * @param {string} packageDir path of dir containing package.json
+ * @returns {Promise<{name: string, version: string, packedFileName: string, packedFilePath: string}>}
+ */
+async function npmPack(packageDir) {
+  const packageJson = await require(path.resolve(packageDir, "package.json"));
+  const name = packageJson["name"];
+  const version = packageJson["version"];
+
+  await exec({ command: NPM_COMMAND, args: ["pack"], options: { cwd: packageDir } });
+
+  const packedFileName = `${name}-${version}.tgz`;
+  const packedFilePath = path.join(packageDir, packedFileName);
+  if (!(await isFile(packedFilePath)))
+    throw new Error(`'npm pack' did not produce expected file '${packedFileName}' in dir ${packageDir}`);
+
+  return { name, version, packedFileName, packedFilePath };
+}
+
+/**
+ * @param {string} path
+ * @returns {Promise<boolean>}
+ */
+async function isFile(path) {
+  try {
+    const info = await fs.stat(path);
+    return info.isFile();
+  } catch (error) {
+    if (error.code === "ENOENT") return false; // TODO double-check code and comparison value
+    throw error;
+  }
 }
 
 runAsyncMain(main);

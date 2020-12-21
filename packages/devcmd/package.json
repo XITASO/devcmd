@@ -1,6 +1,6 @@
 {
   "name": "devcmd",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "repository": {
     "type": "git",
     "url": "https://github.com/XITASO/devcmd.git",
@@ -20,7 +20,7 @@
   ],
   "dependencies": {
     "chalk": "^3.0.0",
-    "devcmd-cli": "0.0.1"
+    "devcmd-cli": "0.0.2"
   },
   "devDependencies": {
     "@types/node": "12",
