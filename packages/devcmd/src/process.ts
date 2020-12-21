@@ -16,8 +16,6 @@ export interface ProcessInfo {
  * /**
  * Executes a process and throws an exception if the exit code is non-zero.
  * Outputs (stdout/stderr) of the process are sent to our stdout/stderr.
- *
- * @param processInfo
  */
 export async function exec(processInfo: ProcessInfo): Promise<void> {
   await execInternal(processInfo, "");
@@ -25,9 +23,7 @@ export async function exec(processInfo: ProcessInfo): Promise<void> {
 
 /**
  * Executes multiple processes in parallel and throws an exception if the exit code is non-zero.
- * Outputs (stdout/stderr) of the process are sent to our stdout/stderr.
- *
- * @param processEntries
+ * Outputs (stdout/stderr) of the processes are sent to our stdout/stderr.
  */
 export async function execParallel(
   processEntries:
