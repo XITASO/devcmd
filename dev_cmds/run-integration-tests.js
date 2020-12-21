@@ -15,9 +15,11 @@
 const { exec } = require("devcmd");
 const path = require("path");
 const fs = require("fs-extra");
+const { red, green, inverse } = require("kleur/colors");
 const { DOCKER_COMMAND, NPM_COMMAND } = require("./utils/commands");
 const { repoRoot } = require("./utils/directories");
 const { runAsyncMain } = require("./utils/run_utils");
+const { execToString } = require("./utils/exec_process");
 
 const VERDACCIO_CONTAINER_NAME = "devcmd_verdaccio";
 const VERDACCIO_STORAGE_VOLUME_NAME = "devcmd_verdaccio_storage";
@@ -31,6 +33,11 @@ const verdaccioConfigDir = path.resolve(repoRoot, "verdaccio");
 const dockerMountDir = path.resolve(repoRoot, "docker-mount");
 
 async function main() {
+  await exec({
+    command: "devcmd",
+    args: ["build-all"],
+  });
+
   await fs.remove(dockerMountDir);
 
   const packedDevcmdCli = await npmPack(devcmdCliPackageDir);
@@ -103,7 +110,6 @@ async function main() {
     args: ["commit", VERDACCIO_CONTAINER_NAME, tempImageName],
   });
 
-  await testGlobalDevcmdInstallation(tempImageName, packedDevcmdCli, packedDevcmd);
   await testSinglePackageJsonExample(tempImageName, packedDevcmdCli, packedDevcmd);
   await testMultiplePackageJsonsExample(tempImageName, packedDevcmdCli, packedDevcmd);
 }
@@ -137,28 +143,28 @@ async function runWithDevcmdContainer(tempImageName, actions) {
   }
 }
 
-async function testGlobalDevcmdInstallation(tempImageName, devcmdCliInfo, devcmdInfo) {
-  await runWithDevcmdContainer(tempImageName, async (containerName) => {
-    await exec({
-      command: DOCKER_COMMAND,
-      args: [
-        "exec",
-        containerName,
-        "sh",
-        "-c",
-        [
-          "mkdir ~/.npm-global",
-          "npm config set prefix '~/.npm-global'",
-          "export PATH=~/.npm-global/bin:$PATH",
-          `npm --registry ${LOCAL_REGISTRY_URL} install -g ${devcmdCliInfo.name}@${devcmdCliInfo.version}`,
-        ].join(" && "),
-      ],
-    });
+async function installDevcmdCliGlobally(containerName, devcmdCliInfo) {
+  await exec({
+    command: DOCKER_COMMAND,
+    args: [
+      "exec",
+      containerName,
+      "sh",
+      "-c",
+      [
+        "mkdir ~/.npm-global",
+        "npm config set prefix '~/.npm-global'",
+        "export PATH=~/.npm-global/bin:$PATH",
+        `npm --registry ${LOCAL_REGISTRY_URL} install -g ${devcmdCliInfo.name}@${devcmdCliInfo.version}`,
+      ].join(" && "),
+    ],
   });
 }
 
-async function testSinglePackageJsonExample(tempImageName) {
+async function testSinglePackageJsonExample(tempImageName, devcmdCliInfo) {
   await runWithDevcmdContainer(tempImageName, async (containerName) => {
+    await installDevcmdCliGlobally(containerName, devcmdCliInfo);
+
     await exec({
       command: DOCKER_COMMAND,
       args: ["exec", containerName, "sh", "-c", ["mkdir /tmp/devcmd_test"].join(" && ")],
@@ -184,11 +190,36 @@ async function testSinglePackageJsonExample(tempImageName) {
         ["cd /tmp/devcmd_test/single-package-json", `npm --registry ${LOCAL_REGISTRY_URL} install`].join(" && "),
       ],
     });
+
+    const { stdout } = await execToString({
+      command: DOCKER_COMMAND,
+      args: [
+        "exec",
+        containerName,
+        "sh",
+        "-c",
+        ["cd /tmp/devcmd_test/single-package-json", `npx devcmd example_cmd`].join(" && "),
+      ],
+    });
+
+    if (!stdout.trim().startsWith("Example command for single-package-json example")) {
+      console.log(red("single-package-json didn't print expected output."));
+      console.log(red("Actual output was:"));
+      console.log(red(stdout));
+
+      throw new Error("single-package-json didn't print expected output (see log above)");
+    } else {
+      console.log();
+      console.log(green(inverse(" OK ") + " single-package-json"));
+      console.log();
+    }
   });
 }
 
-async function testMultiplePackageJsonsExample(tempImageName) {
+async function testMultiplePackageJsonsExample(tempImageName, devcmdCliInfo) {
   await runWithDevcmdContainer(tempImageName, async (containerName) => {
+    await installDevcmdCliGlobally(containerName, devcmdCliInfo);
+
     await exec({
       command: DOCKER_COMMAND,
       args: ["exec", containerName, "sh", "-c", ["mkdir /tmp/devcmd_test"].join(" && ")],
@@ -216,6 +247,33 @@ async function testMultiplePackageJsonsExample(tempImageName) {
         ),
       ],
     });
+
+    const { stdout } = await execToString({
+      command: DOCKER_COMMAND,
+      args: [
+        "exec",
+        containerName,
+        "sh",
+        "-c",
+        [
+          "export PATH=~/.npm-global/bin:$PATH",
+          "cd /tmp/devcmd_test/multiple-package-jsons",
+          `devcmd example_cmd`,
+        ].join(" && "),
+      ],
+    });
+
+    if (!stdout.trim().startsWith("Example command for multiple-package-jsons example")) {
+      console.log(red("multiple-package-jsons didn't print expected output."));
+      console.log(red("Actual output was:"));
+      console.log(red(stdout));
+
+      throw new Error("multiple-package-jsons didn't print expected output (see log above)");
+    } else {
+      console.log();
+      console.log(green(inverse(" OK ") + " multiple-package-jsons"));
+      console.log();
+    }
   });
 }
 
