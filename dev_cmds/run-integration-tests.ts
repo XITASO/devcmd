@@ -29,40 +29,26 @@ const verdaccioConfigDir = path.resolve(repoRoot, "verdaccio");
 const dockerMountDir = path.resolve(repoRoot, "docker-mount");
 
 async function main() {
-  await exec({
-    command: DEVCMD_COMMAND,
-    args: ["build-all"],
-  });
+  await exec({ command: DEVCMD_COMMAND, args: ["build-all"] });
 
   await fs.remove(dockerMountDir);
 
   const packedDevcmdCli = await npmPack(devcmdCliPackageDir);
   const packedDevcmd = await npmPack(devcmdPackageDir);
 
-  console.log("preparing docker mount");
   await fs.mkdirp(dockerMountDir);
   await fs.copy(packedDevcmdCli.packedFilePath, path.join(dockerMountDir, packedDevcmdCli.packedFileName));
   await fs.copy(packedDevcmd.packedFilePath, path.join(dockerMountDir, packedDevcmd.packedFileName));
 
-  console.log("cleaning up container and volume");
   try {
-    await exec({
-      command: DOCKER_COMMAND,
-      args: ["rm", "--force", VERDACCIO_CONTAINER_NAME],
-    });
+    await exec({ command: DOCKER_COMMAND, args: ["rm", "--force", VERDACCIO_CONTAINER_NAME] });
   } catch {}
 
   try {
-    await exec({
-      command: DOCKER_COMMAND,
-      args: ["volume", "rm", "--force", VERDACCIO_STORAGE_VOLUME_NAME],
-    });
+    await exec({ command: DOCKER_COMMAND, args: ["volume", "rm", "--force", VERDACCIO_STORAGE_VOLUME_NAME] });
   } catch {}
 
-  await exec({
-    command: DOCKER_COMMAND,
-    args: ["volume", "create", VERDACCIO_STORAGE_VOLUME_NAME],
-  });
+  await exec({ command: DOCKER_COMMAND, args: ["volume", "create", VERDACCIO_STORAGE_VOLUME_NAME] });
 
   await exec({
     command: DOCKER_COMMAND,
@@ -95,16 +81,10 @@ async function main() {
     ],
   });
 
-  await exec({
-    command: DOCKER_COMMAND,
-    args: ["stop", VERDACCIO_CONTAINER_NAME],
-  });
+  await exec({ command: DOCKER_COMMAND, args: ["stop", VERDACCIO_CONTAINER_NAME] });
 
   const tempImageName = `devcmd_${Date.now()}`;
-  await exec({
-    command: DOCKER_COMMAND,
-    args: ["commit", VERDACCIO_CONTAINER_NAME, tempImageName],
-  });
+  await exec({ command: DOCKER_COMMAND, args: ["commit", VERDACCIO_CONTAINER_NAME, tempImageName] });
 
   await testSinglePackageJsonExample(tempImageName, packedDevcmdCli);
   await testMultiplePackageJsonsExample(tempImageName, packedDevcmdCli);
@@ -131,10 +111,7 @@ async function runWithDevcmdContainer(tempImageName: string, actions: (container
     await actions(containerName);
   } finally {
     try {
-      await exec({
-        command: DOCKER_COMMAND,
-        args: ["rm", "--force", containerName],
-      });
+      await exec({ command: DOCKER_COMMAND, args: ["rm", "--force", containerName] });
     } catch {}
   }
 }
@@ -163,7 +140,7 @@ async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo
 
     await exec({
       command: DOCKER_COMMAND,
-      args: ["exec", containerName, "sh", "-c", ["mkdir /tmp/devcmd_test"].join(" && ")],
+      args: ["exec", containerName, "sh", "-c", "mkdir /tmp/devcmd_test"],
     });
 
     await exec({
@@ -218,7 +195,7 @@ async function testMultiplePackageJsonsExample(tempImageName: string, devcmdCliI
 
     await exec({
       command: DOCKER_COMMAND,
-      args: ["exec", containerName, "sh", "-c", ["mkdir /tmp/devcmd_test"].join(" && ")],
+      args: ["exec", containerName, "sh", "-c", "mkdir /tmp/devcmd_test"],
     });
 
     await exec({
