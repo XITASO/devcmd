@@ -48,6 +48,14 @@ async function isDir(path: string): Promise<boolean> {
   }
 }
 
+function isWindows(): boolean {
+  return process.platform === "win32";
+}
+
+function withCmdOnWin(baseCmd: string): string {
+  return isWindows() ? `${baseCmd}.cmd` : baseCmd;
+}
+
 // Note: if launching a node subprocess for the resolution should turn out to be a problem,
 //   we could also use the npm module "resolve" to find the path ourselves (and e.g. require it in-process).
 //   See https://yarnpkg.com/package/resolve
@@ -57,7 +65,7 @@ async function runInDevCmdsDir(dirPath: string) {
 
   // TODO: use spawn or so instead
   // we're using `npx` to launch node so that it automatically augments the PATH with the relevant `node_modules/.bin` dir(s)
-  execFileSync("npx", ["node", "-e", `require('devcmd').devcmd(${argString})`], {
+  execFileSync(withCmdOnWin("npx"), ["node", "-e", `require('devcmd').devcmd(${argString})`], {
     cwd: dirPath,
     stdio: "inherit",
   });
