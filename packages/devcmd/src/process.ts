@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import { Readable } from "stream";
-import * as readline from "readline";
-import * as chalk from "chalk";
+import { createInterface } from "readline";
+import chalk from "chalk";
 
 export interface ProcessInfo {
   command: string;
@@ -112,7 +112,7 @@ async function execInternal(processInfo: ProcessInfo, logPrefix: string): Promis
 }
 
 async function logStream(stream: Readable, log: (message: string) => void): Promise<void> {
-  const lines = readline.createInterface({
+  const lines = createInterface({
     input: stream,
     crlfDelay: Infinity, // Required to support Windows newlines
   });
