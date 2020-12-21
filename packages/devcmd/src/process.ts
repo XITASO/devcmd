@@ -77,7 +77,9 @@ async function execInternal(processInfo: ProcessInfo, logPrefix: string): Promis
   const consoleLog = (line: string, ...params: any[]) => console.log(withPrefix(line), ...params);
   const consoleError = (line: string, ...params: any[]) => console.error(withPrefix(line), ...params);
 
-  consoleError(kleur.gray(`Starting process: ${processInfo.command} ${JSON.stringify(processInfo.args)}`));
+  consoleError(
+    kleur.gray(`Starting process: ${processInfo.command} ${!!processInfo.args ? JSON.stringify(processInfo.args) : ""}`)
+  );
 
   const options = processInfo.options ?? {};
 
@@ -91,12 +93,17 @@ async function execInternal(processInfo: ProcessInfo, logPrefix: string): Promis
     },
   });
 
-  await Promise.all([logStream(childProcess.stdout, consoleLog), logStream(childProcess.stderr, consoleError)]);
+  const childStreamsPromise = Promise.all([
+    logStream(childProcess.stdout, consoleLog),
+    logStream(childProcess.stderr, consoleError),
+  ]);
 
   const code = await new Promise((resolve, reject) => {
     childProcess.on("error", (err) => reject(err));
     childProcess.on("exit", (code) => resolve(code));
   });
+
+  await childStreamsPromise;
 
   if (code !== 0) {
     const message = `Process '${processInfo.command}' exited with status code ${code}`;
