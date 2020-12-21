@@ -6,5 +6,9 @@
   ],
   "devDependencies": {
     "prettier": "^2.2.0"
+  },
+  "scripts": {
+    "devcmd": "cd dev_cmds && yarn devcmd",
+    "postinstall": "cd dev_cmds && yarn"
   }
 }
