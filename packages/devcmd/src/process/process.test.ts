@@ -24,14 +24,14 @@ describe("ProcessExecutor", () => {
     test("succeeding processes by name works", async () => {
       await new ProcessExecutor(nullConsole).execParallel({
         node: { command: "node", args: ["--version"] },
-        npm: { command: "npm", args: ["--version"] },
+        npm: { command: withCmdOnWin("npm"), args: ["--version"] },
       });
     });
 
     test("succeeding processes by index works", async () => {
       await new ProcessExecutor(nullConsole).execParallel({
         1: { command: "node", args: ["--version"] },
-        2: { command: "npm", args: ["--version"] },
+        2: { command: withCmdOnWin("npm"), args: ["--version"] },
       });
     });
 
@@ -40,7 +40,7 @@ describe("ProcessExecutor", () => {
       await expect(
         new ProcessExecutor(nullConsole).execParallel({
           node: { command: "node", args: ["-e", "process.exit(2)"] },
-          npm: { command: "npm", args: ["--version"] },
+          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
         })
       ).rejects.toThrowError();
     });
@@ -82,4 +82,12 @@ class CapturingConsole implements ConsoleLike {
   error(message?: any, ...optionalParams: any[]): void {
     this._errorLines.push({ message, optionalParams });
   }
+}
+
+function isWindows(): boolean {
+  return process.platform === "win32";
+}
+
+function withCmdOnWin(baseCmd: string): string {
+  return isWindows() ? `${baseCmd}.cmd` : baseCmd;
 }
