@@ -1,7 +1,7 @@
 import { spawn } from "child_process";
 import { Readable } from "stream";
 import { createInterface } from "readline";
-import chalk from "chalk";
+import kleur from "kleur";
 
 export interface ProcessInfo {
   command: string;
@@ -16,8 +16,6 @@ export interface ProcessInfo {
  * /**
  * Executes a process and throws an exception if the exit code is non-zero.
  * Outputs (stdout/stderr) of the process are sent to our stdout/stderr.
- *
- * @param processInfo
  */
 export async function exec(processInfo: ProcessInfo): Promise<void> {
   await execInternal(processInfo, "");
@@ -25,9 +23,7 @@ export async function exec(processInfo: ProcessInfo): Promise<void> {
 
 /**
  * Executes multiple processes in parallel and throws an exception if the exit code is non-zero.
- * Outputs (stdout/stderr) of the process are sent to our stdout/stderr.
- *
- * @param processEntries
+ * Outputs (stdout/stderr) of the processes are sent to our stdout/stderr.
  */
 export async function execParallel(
   processEntries:
@@ -41,7 +37,7 @@ export async function execParallel(
     unwrapResults(
       await Promise.all([
         ...Object.entries(processEntries).map(([id, processInfo]) =>
-          wrapResult(() => execInternal(processInfo, chalk.cyan(`<${id}> `)))
+          wrapResult(() => execInternal(processInfo, kleur.cyan(`<${id}> `)))
         ),
       ])
     );
@@ -81,15 +77,15 @@ async function execInternal(processInfo: ProcessInfo, logPrefix: string): Promis
   const consoleLog = (line: string, ...params: any[]) => console.log(withPrefix(line), ...params);
   const consoleError = (line: string, ...params: any[]) => console.error(withPrefix(line), ...params);
 
-  consoleError("Starting process:", processInfo.command, JSON.stringify(processInfo.args));
+  consoleError(kleur.gray(`Starting process: ${processInfo.command} ${JSON.stringify(processInfo.args)}`));
 
   const options = processInfo.options ?? {};
 
   const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
     cwd: options.cwd,
     env: {
-      // Pass chalk's color support down to the child process
-      FORCE_COLOR: chalk.supportsColor ? chalk.supportsColor.level.toString() : "0",
+      // Pass kleur's color support down to the child process
+      FORCE_COLOR: kleur.enabled ? "1" : "0",
 
       ...(options.env ?? process.env),
     },
@@ -104,11 +100,11 @@ async function execInternal(processInfo: ProcessInfo, logPrefix: string): Promis
 
   if (code !== 0) {
     const message = `Process '${processInfo.command}' exited with status code ${code}`;
-    consoleError(message);
+    consoleError(kleur.red(message));
     throw new Error(message);
   }
 
-  consoleError(`Process '${processInfo.command}' exited successfully.`);
+  consoleError(kleur.gray(`Process '${processInfo.command}' exited successfully.\n`));
 }
 
 async function logStream(stream: Readable, log: (message: string) => void): Promise<void> {
