@@ -19,8 +19,10 @@
     "/dist"
   ],
   "dependencies": {
+    "@types/npm-run": "^5.0.0",
     "chalk": "^3.0.0",
-    "devcmd-cli": "0.0.2"
+    "devcmd-cli": "0.0.2",
+    "npm-run": "^5.0.1"
   },
   "devDependencies": {
     "@types/node": "12",

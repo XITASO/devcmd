@@ -1,4 +1,4 @@
-import { execFileSync } from "child_process";
+import { spawnSync } from "npm-run";
 import { promises as fs } from "fs";
 import path from "path";
 
@@ -52,6 +52,14 @@ async function isFile(path: string): Promise<boolean> {
   }
 }
 
+function isWindows(): boolean {
+  return process.platform === "win32";
+}
+
+function withCmdOnWin(baseCmd: string): string {
+  return isWindows() ? `${baseCmd}.cmd` : baseCmd;
+}
+
 const scriptRunners = [
   { extension: "ts", launcher: "ts-node" },
   { extension: "js", launcher: "node" },
@@ -62,7 +70,8 @@ async function findAndRunScript(devCmdsDir: string, commandName: string, command
     const scriptFilepath = path.join(devCmdsDir, `${commandName}.${extension}`);
     if (await isFile(scriptFilepath)) {
       // TODO: use spawn or so instead
-      execFileSync("npx", [launcher, scriptFilepath, ...commandArgs], { stdio: "inherit" });
+      spawnSync(withCmdOnWin(launcher), [scriptFilepath, ...commandArgs], { stdio: "inherit" });
+
       return;
     }
   }
