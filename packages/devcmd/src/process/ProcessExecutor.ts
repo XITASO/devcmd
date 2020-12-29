@@ -17,8 +17,22 @@ export interface ConsoleLike {
   error(message?: any, ...optionalParams: any[]): void;
 }
 
+class SafeConsoleLike implements ConsoleLike {
+  constructor(private readonly consoleLike: ConsoleLike | undefined | null) {}
+
+  log(message?: any, ...optionalParams: any[]): void {
+    if (this.consoleLike) this.consoleLike.log(message, ...optionalParams);
+  }
+  error(message?: any, ...optionalParams: any[]): void {
+    if (this.consoleLike) this.consoleLike.error(message, ...optionalParams);
+  }
+}
+
 export class ProcessExecutor {
-  constructor(private readonly consoleLike: ConsoleLike) {
+  private readonly consoleLike: ConsoleLike;
+
+  constructor(consoleLike: ConsoleLike) {
+    this.consoleLike = new SafeConsoleLike(consoleLike);
     this.exec = this.exec.bind(this);
     this.execParallel = this.execParallel.bind(this);
   }

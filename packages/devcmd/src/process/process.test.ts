@@ -3,8 +3,12 @@ import { ConsoleLike } from "./ProcessExecutor";
 
 describe("ProcessExecutor", () => {
   describe("exec()", () => {
-    test("process that successfully exits works", async () => {
+    test("process that successfully exits works (with console)", async () => {
       await new ProcessExecutor(nullConsole).exec({ command: "node", args: ["--version"] });
+    });
+
+    test("process that successfully exits works (with no console)", async () => {
+      await new ProcessExecutor(null as any).exec({ command: "node", args: ["--version"] });
     });
 
     test("unknown executable throws", async () => {
@@ -21,8 +25,15 @@ describe("ProcessExecutor", () => {
   });
 
   describe("execParallel()", () => {
-    test("succeeding processes by name works", async () => {
+    test("succeeding processes by name works (with console)", async () => {
       await new ProcessExecutor(nullConsole).execParallel({
+        node: { command: "node", args: ["--version"] },
+        npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+      });
+    });
+
+    test("succeeding processes by name works (with no console)", async () => {
+      await new ProcessExecutor(undefined as any).execParallel({
         node: { command: "node", args: ["--version"] },
         npm: { command: withCmdOnWin("npm"), args: ["--version"] },
       });
