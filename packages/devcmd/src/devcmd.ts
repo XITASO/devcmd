@@ -1,6 +1,7 @@
 import { spawnSync } from "npm-run";
 import { promises as fs } from "fs";
 import path from "path";
+import { withCmdOnWin } from "./utils/platform_utils";
 
 const devCmdsDirName = "dev_cmds";
 
@@ -50,14 +51,6 @@ async function isFile(path: string): Promise<boolean> {
     if (error.code === "ENOENT") return false; // TODO double-check code and comparison value
     throw error;
   }
-}
-
-function isWindows(): boolean {
-  return process.platform === "win32";
-}
-
-function withCmdOnWin(baseCmd: string): string {
-  return isWindows() ? `${baseCmd}.cmd` : baseCmd;
 }
 
 const scriptRunners = [
