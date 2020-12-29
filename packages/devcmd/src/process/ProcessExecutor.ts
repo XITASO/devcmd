@@ -1,4 +1,4 @@
-import { spawn } from "child_process";
+import { ChildProcess, spawn } from "child_process";
 import { Readable } from "stream";
 import { createInterface } from "readline";
 import kleur from "kleur";
@@ -89,17 +89,11 @@ export class ProcessExecutor {
       },
     });
 
-    const childStreamsPromise = Promise.all([
+    const [code] = await Promise.all([
+      childProcessCompletion(childProcess),
       logStream(childProcess.stdout, consoleLog),
       logStream(childProcess.stderr, consoleError),
     ]);
-
-    const code = await new Promise((resolve, reject) => {
-      childProcess.on("error", (err) => reject(err));
-      childProcess.on("exit", (code) => resolve(code));
-    });
-
-    await childStreamsPromise;
 
     if (code !== 0) {
       const message = `Process '${processInfo.command}' exited with status code ${code}`;
@@ -121,10 +115,7 @@ export class ProcessExecutor {
       },
     });
 
-    const code = await new Promise((resolve, reject) => {
-      childProcess.on("error", (err) => reject(err));
-      childProcess.on("exit", (code) => resolve(code));
-    });
+    const code = await childProcessCompletion(childProcess);
 
     if (code !== 0) {
       const message = `Process '${processInfo.command}' exited with status code ${code}`;
@@ -146,10 +137,7 @@ export class ProcessExecutor {
       },
     });
 
-    const processCompletion = new Promise<number | null>((resolve, reject) => {
-      childProcess.on("error", (err) => reject(err));
-      childProcess.on("exit", (code) => resolve(code));
-    });
+    const processCompletion = childProcessCompletion(childProcess);
 
     const [code] = await Promise.all([
       processCompletion,
@@ -172,6 +160,13 @@ export class ProcessExecutor {
 
     return { stdout: childStdout, stderr: childStderr };
   }
+}
+
+function childProcessCompletion(childProcess: ChildProcess): Promise<number | null> {
+  return new Promise<number | null>((resolve, reject) => {
+    childProcess.on("error", (err) => reject(err));
+    childProcess.on("exit", (code) => resolve(code));
+  });
 }
 
 type Result = { ok: true } | { err: unknown };
