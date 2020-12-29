@@ -66,6 +66,31 @@ describe("ProcessExecutor", () => {
       ).rejects.toThrowError();
     });
   });
+
+  describe("execInTty()", () => {
+    test("process that successfully exits works (with console)", async () => {
+      await new ProcessExecutor(nullConsole).execInTty({ command: "node", args: ["--version"] });
+    });
+
+    test("process that successfully exits works (with no console)", async () => {
+      await new ProcessExecutor(null as any).execInTty({ command: "node", args: ["--version"] });
+    });
+
+    test("unknown executable throws", async () => {
+      expect.assertions(1);
+      const execPromise = new ProcessExecutor(nullConsole).execInTty({ command: "unknown_executable" });
+      await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
+    });
+
+    test("failing executable throws", async () => {
+      expect.assertions(1);
+      const execPromise = new ProcessExecutor(nullConsole).execInTty({
+        command: "node",
+        args: ["-e", "process.exit(2)"],
+      });
+      await expect(execPromise).rejects.toThrowError("exited with status code 2");
+    });
+  });
 });
 
 const nullConsole: ConsoleLike = {

@@ -107,6 +107,29 @@ export class ProcessExecutor {
 
     consoleError(kleur.gray(`Process '${processInfo.command}' exited successfully.\n`));
   }
+
+  async execInTty(processInfo: ProcessInfo): Promise<void> {
+    const options = processInfo.options ?? {};
+
+    const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
+      cwd: options.cwd,
+      stdio: "inherit",
+      env: {
+        ...(options.env ?? process.env),
+      },
+    });
+
+    const code = await new Promise((resolve, reject) => {
+      childProcess.on("error", (err) => reject(err));
+      childProcess.on("exit", (code) => resolve(code));
+    });
+
+    if (code !== 0) {
+      const message = `Process '${processInfo.command}' exited with status code ${code}`;
+      this.consoleLike.error(kleur.red(message));
+      throw new Error(message);
+    }
+  }
 }
 
 type Result = { ok: true } | { err: unknown };
