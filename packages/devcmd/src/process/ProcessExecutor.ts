@@ -130,6 +130,46 @@ export class ProcessExecutor {
       throw new Error(message);
     }
   }
+
+  async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string }> {
+    const options = processInfo.options ?? {};
+
+    let childStdout: string = "";
+    let childStderr: string = "";
+
+    const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
+      cwd: options.cwd,
+      env: {
+        ...(options.env ?? process.env),
+      },
+    });
+
+    const processCompletion = new Promise<number | null>((resolve, reject) => {
+      childProcess.on("error", (err) => reject(err));
+      childProcess.on("exit", (code) => resolve(code));
+    });
+
+    const [code] = await Promise.all([
+      processCompletion,
+      logStream(childProcess.stdout, (line) => {
+        childStdout += line + "\n";
+      }),
+      logStream(childProcess.stderr, (line) => {
+        childStderr += line + "\n";
+      }),
+    ]);
+
+    if (code !== 0) {
+      const message =
+        `Process '${processInfo.command}' exited with status code ${code}\n\n` +
+        `STDOUT WAS:\n${childStdout}\n\n` +
+        `STDERR WAS:\n${childStderr}\n\n`;
+      this.consoleLike.error(kleur.red(message));
+      throw new Error(message);
+    }
+
+    return { stdout: childStdout, stderr: childStderr };
+  }
 }
 
 type Result = { ok: true } | { err: unknown };

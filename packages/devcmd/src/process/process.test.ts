@@ -91,6 +91,41 @@ describe("ProcessExecutor", () => {
       await expect(execPromise).rejects.toThrowError("exited with status code 2");
     });
   });
+
+  describe("execToString()", () => {
+    test("process that successfully exits works (with console)", async () => {
+      const { stdout, stderr } = await new ProcessExecutor(nullConsole).execToString({
+        command: "node",
+        args: ["--version"],
+      });
+      expect(stderr).toBe("");
+      expect(stdout).toMatch(/v\d+\.\d+\.\d+/);
+    });
+
+    test("process that successfully exits works (with no console)", async () => {
+      const { stdout, stderr } = await new ProcessExecutor(undefined as any).execToString({
+        command: "node",
+        args: ["--version"],
+      });
+      expect(stderr).toBe("");
+      expect(stdout).toMatch(/v\d+\.\d+\.\d+/);
+    });
+
+    test("unknown executable throws", async () => {
+      expect.assertions(1);
+      const execPromise = new ProcessExecutor(nullConsole).execToString({ command: "unknown_executable" });
+      await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
+    });
+
+    test("failing executable throws", async () => {
+      expect.assertions(1);
+      const execPromise = new ProcessExecutor(nullConsole).execToString({
+        command: "node",
+        args: ["-e", "process.exit(2)"],
+      });
+      await expect(execPromise).rejects.toThrowError("exited with status code 2");
+    });
+  });
 });
 
 const nullConsole: ConsoleLike = {

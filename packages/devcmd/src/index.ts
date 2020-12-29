@@ -1,2 +1,2 @@
 export { devcmd } from "./devcmd";
-export { exec, execParallel, ProcessExecutor, ProcessInfo } from "./process";
+export { exec, execInTty, execParallel, execToString, ProcessExecutor, ProcessInfo } from "./process";
