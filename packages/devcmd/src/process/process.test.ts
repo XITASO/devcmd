@@ -2,71 +2,6 @@ import { ProcessExecutor } from ".";
 import { ConsoleLike } from "./ProcessExecutor";
 
 describe("ProcessExecutor", () => {
-  describe("exec()", () => {
-    test("process that successfully exits works (with console)", async () => {
-      await new ProcessExecutor(nullConsole).exec({ command: "node", args: ["--version"] });
-    });
-
-    test("process that successfully exits works (with no console)", async () => {
-      await new ProcessExecutor(null as any).exec({ command: "node", args: ["--version"] });
-    });
-
-    test("unknown executable throws", async () => {
-      expect.assertions(1);
-      const execPromise = new ProcessExecutor(nullConsole).exec({ command: "unknown_executable" });
-      await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
-    });
-
-    test("failing executable throws", async () => {
-      expect.assertions(1);
-      const execPromise = new ProcessExecutor(nullConsole).exec({ command: "node", args: ["-e", "process.exit(2)"] });
-      await expect(execPromise).rejects.toThrowError("exited with status code 2");
-    });
-  });
-
-  describe("execParallel()", () => {
-    test("succeeding processes by name works (with console)", async () => {
-      await new ProcessExecutor(nullConsole).execParallel({
-        node: { command: "node", args: ["--version"] },
-        npm: { command: withCmdOnWin("npm"), args: ["--version"] },
-      });
-    });
-
-    test("succeeding processes by name works (with no console)", async () => {
-      await new ProcessExecutor(undefined as any).execParallel({
-        node: { command: "node", args: ["--version"] },
-        npm: { command: withCmdOnWin("npm"), args: ["--version"] },
-      });
-    });
-
-    test("succeeding processes by index works", async () => {
-      await new ProcessExecutor(nullConsole).execParallel({
-        1: { command: "node", args: ["--version"] },
-        2: { command: withCmdOnWin("npm"), args: ["--version"] },
-      });
-    });
-
-    test("single failing process throws", async () => {
-      expect.assertions(1);
-      await expect(
-        new ProcessExecutor(nullConsole).execParallel({
-          node: { command: "node", args: ["-e", "process.exit(2)"] },
-          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
-        })
-      ).rejects.toThrowError();
-    });
-
-    test("multiple failing process throws", async () => {
-      expect.assertions(1);
-      await expect(
-        new ProcessExecutor(nullConsole).execParallel({
-          node: { command: "node", args: ["-e", "process.exit(2)"] },
-          unknown_executable: { command: "unknown_executable" },
-        })
-      ).rejects.toThrowError();
-    });
-  });
-
   describe("execInTty()", () => {
     test("process that successfully exits works (with console)", async () => {
       await new ProcessExecutor(nullConsole).execInTty({ command: "node", args: ["--version"] });
@@ -89,6 +24,74 @@ describe("ProcessExecutor", () => {
         args: ["-e", "process.exit(2)"],
       });
       await expect(execPromise).rejects.toThrowError("exited with status code 2");
+    });
+  });
+
+  describe("execPiped()", () => {
+    test("process that successfully exits works (with console)", async () => {
+      await new ProcessExecutor(nullConsole).execPiped({ command: "node", args: ["--version"] });
+    });
+
+    test("process that successfully exits works (with no console)", async () => {
+      await new ProcessExecutor(null as any).execPiped({ command: "node", args: ["--version"] });
+    });
+
+    test("unknown executable throws", async () => {
+      expect.assertions(1);
+      const execPromise = new ProcessExecutor(nullConsole).execPiped({ command: "unknown_executable" });
+      await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
+    });
+
+    test("failing executable throws", async () => {
+      expect.assertions(1);
+      const execPromise = new ProcessExecutor(nullConsole).execPiped({
+        command: "node",
+        args: ["-e", "process.exit(2)"],
+      });
+      await expect(execPromise).rejects.toThrowError("exited with status code 2");
+    });
+  });
+
+  describe("execPipedParallel()", () => {
+    test("succeeding processes by name works (with console)", async () => {
+      await new ProcessExecutor(nullConsole).execPipedParallel({
+        node: { command: "node", args: ["--version"] },
+        npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+      });
+    });
+
+    test("succeeding processes by name works (with no console)", async () => {
+      await new ProcessExecutor(undefined as any).execPipedParallel({
+        node: { command: "node", args: ["--version"] },
+        npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+      });
+    });
+
+    test("succeeding processes by index works", async () => {
+      await new ProcessExecutor(nullConsole).execPipedParallel({
+        1: { command: "node", args: ["--version"] },
+        2: { command: withCmdOnWin("npm"), args: ["--version"] },
+      });
+    });
+
+    test("single failing process throws", async () => {
+      expect.assertions(1);
+      await expect(
+        new ProcessExecutor(nullConsole).execPipedParallel({
+          node: { command: "node", args: ["-e", "process.exit(2)"] },
+          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+        })
+      ).rejects.toThrowError();
+    });
+
+    test("multiple failing process throws", async () => {
+      expect.assertions(1);
+      await expect(
+        new ProcessExecutor(nullConsole).execPipedParallel({
+          node: { command: "node", args: ["-e", "process.exit(2)"] },
+          unknown_executable: { command: "unknown_executable" },
+        })
+      ).rejects.toThrowError();
     });
   });
 

@@ -33,29 +33,31 @@ export class ProcessExecutor {
 
   constructor(consoleLike: ConsoleLike) {
     this.consoleLike = new SafeConsoleLike(consoleLike);
-    this.exec = this.exec.bind(this);
-    this.execParallel = this.execParallel.bind(this);
+    this.execPiped = this.execPiped.bind(this);
+    this.execPipedParallel = this.execPipedParallel.bind(this);
   }
 
   /**
    * Executes a process and throws an exception if the exit code is non-zero.
    * Outputs (stdout/stderr) of the process are sent to our stdout/stderr.
    */
-  async exec(processInfo: ProcessInfo): Promise<void> {
-    await this.execInternal(processInfo, "");
+  async execPiped(processInfo: ProcessInfo): Promise<void> {
+    await this.execPipedInternal(processInfo, "");
   }
 
   /**
    * Executes multiple processes in parallel and throws an exception if the exit code is non-zero.
    * Outputs (stdout/stderr) of the processes are sent to our stdout/stderr.
    */
-  async execParallel(processEntries: { [id: string]: ProcessInfo } | { [id: number]: ProcessInfo }): Promise<void> {
+  async execPipedParallel(
+    processEntries: { [id: string]: ProcessInfo } | { [id: number]: ProcessInfo }
+  ): Promise<void> {
     this.consoleLike.error("Beginning parallel execution...");
     try {
       unwrapResults(
         await Promise.all([
           ...Object.entries(processEntries).map(([id, processInfo]) =>
-            wrapResult(() => this.execInternal(processInfo, kleur.cyan(`<${id}> `)))
+            wrapResult(() => this.execPipedInternal(processInfo, kleur.cyan(`<${id}> `)))
           ),
         ])
       );
@@ -64,7 +66,7 @@ export class ProcessExecutor {
     }
   }
 
-  private async execInternal(processInfo: ProcessInfo, logPrefix: string): Promise<void> {
+  private async execPipedInternal(processInfo: ProcessInfo, logPrefix: string): Promise<void> {
     const withPrefix = (line: string) => `${logPrefix}${line}`;
     const consoleLog = (line: string, ...params: any[]) => this.consoleLike.log(withPrefix(line), ...params);
     const consoleError = (line: string, ...params: any[]) => this.consoleLike.error(withPrefix(line), ...params);

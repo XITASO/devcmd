@@ -1,14 +1,14 @@
-import { exec, execParallel } from "devcmd";
+import { execPiped, execPipedParallel } from "devcmd";
 
 (async () => {
   console.log("Example command for multiple-package-jsons example");
 
-  await exec({
+  await execPiped({
     command: "node",
     args: ["-v"],
   });
 
-  await execParallel({
+  await execPipedParallel({
     nodeVersion: {
       command: "node",
       args: ["-v"],
