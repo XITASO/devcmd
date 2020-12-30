@@ -1,7 +1,8 @@
 import { promises as fs } from "fs";
-import { gray, bold, red } from "kleur/colors";
+import { gray, bold, red, reset } from "kleur/colors";
 import { spawnSync } from "npm-run";
 import path from "path";
+import { formatCommandArgs, formatCommandName } from "./utils/format_utils";
 import { withCmdOnWin } from "./utils/platform_utils";
 import { getDevcmdVersion } from "./utils/version_utils";
 
@@ -40,14 +41,11 @@ function assertArgsValid(args: string[]): args is string[] {
   return true;
 }
 
-function printScriptHeader(scriptName: string, scriptArgs: string[]) {
-  let argsString = "";
-  if (!!scriptArgs && scriptArgs.length > 0) {
-    argsString += gray(" with args [");
-    argsString += (scriptArgs || []).map((a) => gray('"') + a + gray('"')).join(",");
-    argsString += gray("]");
-  }
-  console.log(`${gray(": cmd")} ${scriptName}${argsString}`);
+function printScriptHeader(commandName: string, commandArgs: string[]) {
+  const commandString = formatCommandName(commandName, gray, reset);
+  const argsString =
+    !!commandArgs && commandArgs.length > 0 ? gray(" with args ") + formatCommandArgs(commandArgs, gray, reset) : "";
+  console.log(`${gray(": cmd")} ${commandString}${argsString}`);
 }
 
 function abort(message: string, exitCode: number = 1): never {

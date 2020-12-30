@@ -1,8 +1,8 @@
 import { ChildProcess, spawn } from "child_process";
 import { Readable } from "stream";
 import { createInterface } from "readline";
-import kleur from "kleur";
-import { gray, red, reset, dim, bold } from "kleur/colors";
+import { gray, red, reset, dim, bold, cyan, $ as kleur$ } from "kleur/colors";
+import { formatCommandArgs, formatCommandName, Styler } from "../utils/format_utils";
 
 export interface ProcessInfo {
   command: string;
@@ -57,7 +57,7 @@ export class ProcessExecutor {
       unwrapResults(
         await Promise.all([
           ...processEntries.map(([id, processInfo]) =>
-            wrapResult(() => this.execPipedInternal(processInfo, kleur.cyan(`<${id}> `)))
+            wrapResult(() => this.execPipedInternal(processInfo, cyan(`<${id}> `)))
           ),
         ])
       );
@@ -79,9 +79,7 @@ export class ProcessExecutor {
     const consoleLog = (line: string, ...params: any[]) => this.consoleLike.log(withPrefix(line), ...params);
     const consoleError = (line: string, ...params: any[]) => this.consoleLike.error(withPrefix(line), ...params);
 
-    consoleError(
-      noticeStyled(`Starting process: ${formatProcessCommand(processInfo)} ${formatProcessArgs(processInfo)}`)
-    );
+    consoleError(noticeStyled(`Starting process: ${formatProcessInvocation(processInfo)}`));
 
     const options = processInfo.options ?? {};
 
@@ -89,7 +87,7 @@ export class ProcessExecutor {
       cwd: options.cwd,
       env: {
         // Pass kleur's color support down to the child process
-        FORCE_COLOR: kleur.enabled ? "1" : "0",
+        FORCE_COLOR: kleur$.enabled ? "1" : "0",
 
         ...(options.env ?? process.env),
       },
@@ -112,9 +110,7 @@ export class ProcessExecutor {
   }
 
   async execInTty(processInfo: ProcessInfo): Promise<void> {
-    this.printNotice(
-      `Starting process: ${formatProcessCommand(processInfo)} ${formatProcessArgs(processInfo)} attached to TTY`
-    );
+    this.printNotice(`Starting process: ${formatProcessInvocation(processInfo)} attached to TTY`);
     const options = processInfo.options ?? {};
 
     const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
@@ -138,9 +134,7 @@ export class ProcessExecutor {
   }
 
   async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string }> {
-    this.printNotice(
-      `Starting process: ${formatProcessCommand(processInfo)} ${formatProcessArgs(processInfo)} and capturing output`
-    );
+    this.printNotice(`Starting process: ${formatProcessInvocation(processInfo)} and capturing output`);
     const options = processInfo.options ?? {};
 
     let childStdout: string = "";
@@ -229,24 +223,16 @@ function formatProcessCommand(
   baseStyler: Styler = noticeStyled,
   highlightStyler: Styler = noticeHighlightStyled
 ): string {
-  return quoted(processInfo.command, baseStyler, highlightStyler);
+  return formatCommandName(processInfo.command, baseStyler, highlightStyler);
 }
 
-function formatProcessArgs(
+function formatProcessInvocation(
   processInfo: ProcessInfo,
   baseStyler: Styler = noticeStyled,
   highlightStyler: Styler = noticeHighlightStyled
 ): string {
-  return !!processInfo.args
-    ? baseStyler("[") + processInfo.args.map((a) => quoted(a, baseStyler, highlightStyler)).join(",") + baseStyler("]")
-    : "";
+  return formatProcessCommand(processInfo) + " " + formatCommandArgs(processInfo.args, baseStyler, highlightStyler);
 }
-
-function quoted(s: string, quoteStyler: Styler = noticeStyled, textStyler: Styler = noticeHighlightStyled): string {
-  return quoteStyler('"') + textStyler(s) + quoteStyler('"');
-}
-
-type Styler = (s: string) => string;
 
 function identity<T>(x: T): T {
   return x;
