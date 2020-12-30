@@ -2,6 +2,7 @@ import { ChildProcess, spawn } from "child_process";
 import { Readable } from "stream";
 import { createInterface } from "readline";
 import kleur from "kleur";
+import { gray, red, reset, dim, bold } from "kleur/colors";
 
 export interface ProcessInfo {
   command: string;
@@ -49,21 +50,28 @@ export class ProcessExecutor {
    * Executes multiple processes in parallel and throws an exception if the exit code is non-zero.
    * Outputs (stdout/stderr) of the processes are sent to our stdout/stderr.
    */
-  async execPipedParallel(
-    processEntries: { [id: string]: ProcessInfo } | { [id: number]: ProcessInfo }
-  ): Promise<void> {
-    this.consoleLike.error("Beginning parallel execution...");
+  async execPipedParallel(processMap: { [id: string]: ProcessInfo } | { [id: number]: ProcessInfo }): Promise<void> {
+    const processEntries = Object.entries(processMap);
+    this.printNotice(`Beginning parallel execution of ${processEntries.length} processes...`);
     try {
       unwrapResults(
         await Promise.all([
-          ...Object.entries(processEntries).map(([id, processInfo]) =>
+          ...processEntries.map(([id, processInfo]) =>
             wrapResult(() => this.execPipedInternal(processInfo, kleur.cyan(`<${id}> `)))
           ),
         ])
       );
     } finally {
-      this.consoleLike.error("Finished parallel execution.");
+      this.printNotice("Finished parallel execution.");
     }
+  }
+
+  private printNotice(message?: any, ...optionalParams: any[]): void {
+    this.consoleLike.error(noticeStyled(message), ...optionalParams);
+  }
+
+  private printError(message?: any, ...optionalParams: any[]): void {
+    this.consoleLike.error(red(message), ...optionalParams);
   }
 
   private async execPipedInternal(processInfo: ProcessInfo, logPrefix: string): Promise<void> {
@@ -72,9 +80,7 @@ export class ProcessExecutor {
     const consoleError = (line: string, ...params: any[]) => this.consoleLike.error(withPrefix(line), ...params);
 
     consoleError(
-      kleur.gray(
-        `Starting process: ${processInfo.command} ${!!processInfo.args ? JSON.stringify(processInfo.args) : ""}`
-      )
+      noticeStyled(`Starting process: ${formatProcessCommand(processInfo)} ${formatProcessArgs(processInfo)}`)
     );
 
     const options = processInfo.options ?? {};
@@ -96,15 +102,19 @@ export class ProcessExecutor {
     ]);
 
     if (code !== 0) {
-      const message = `Process '${processInfo.command}' exited with status code ${code}`;
-      consoleError(kleur.red(message));
+      const commandName = formatProcessCommand(processInfo, identity, bold);
+      const message = `Process ${commandName} exited with status code ${code}`;
+      consoleError(red(message));
       throw new Error(message);
     }
 
-    consoleError(kleur.gray(`Process '${processInfo.command}' exited successfully.\n`));
+    consoleError(noticeStyled(`Process ${formatProcessCommand(processInfo)} exited successfully.`));
   }
 
   async execInTty(processInfo: ProcessInfo): Promise<void> {
+    this.printNotice(
+      `Starting process: ${formatProcessCommand(processInfo)} ${formatProcessArgs(processInfo)} attached to TTY`
+    );
     const options = processInfo.options ?? {};
 
     const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
@@ -118,13 +128,19 @@ export class ProcessExecutor {
     const code = await childProcessCompletion(childProcess);
 
     if (code !== 0) {
-      const message = `Process '${processInfo.command}' exited with status code ${code}`;
-      this.consoleLike.error(kleur.red(message));
+      const commandName = formatProcessCommand(processInfo, identity, bold);
+      const message = `Process ${commandName} exited with status code ${code}`;
+      this.printError(message);
       throw new Error(message);
     }
+
+    this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
   }
 
   async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string }> {
+    this.printNotice(
+      `Starting process: ${formatProcessCommand(processInfo)} ${formatProcessArgs(processInfo)} and capturing output`
+    );
     const options = processInfo.options ?? {};
 
     let childStdout: string = "";
@@ -154,9 +170,11 @@ export class ProcessExecutor {
         `Process '${processInfo.command}' exited with status code ${code}\n\n` +
         `STDOUT WAS:\n${childStdout}\n\n` +
         `STDERR WAS:\n${childStderr}\n\n`;
-      this.consoleLike.error(kleur.red(message));
+      this.printError(message);
       throw new Error(message);
     }
+
+    this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
 
     return { stdout: childStdout, stderr: childStderr };
   }
@@ -204,4 +222,40 @@ async function logStream(stream: Readable, log: (message: string) => void): Prom
   for await (const line of lines) {
     log(line);
   }
+}
+
+function formatProcessCommand(
+  processInfo: ProcessInfo,
+  baseStyler: Styler = noticeStyled,
+  highlightStyler: Styler = noticeHighlightStyled
+): string {
+  return quoted(processInfo.command, baseStyler, highlightStyler);
+}
+
+function formatProcessArgs(
+  processInfo: ProcessInfo,
+  baseStyler: Styler = noticeStyled,
+  highlightStyler: Styler = noticeHighlightStyled
+): string {
+  return !!processInfo.args
+    ? baseStyler("[") + processInfo.args.map((a) => quoted(a, baseStyler, highlightStyler)).join(",") + baseStyler("]")
+    : "";
+}
+
+function quoted(s: string, quoteStyler: Styler = noticeStyled, textStyler: Styler = noticeHighlightStyled): string {
+  return quoteStyler('"') + textStyler(s) + quoteStyler('"');
+}
+
+type Styler = (s: string) => string;
+
+function identity<T>(x: T): T {
+  return x;
+}
+
+function noticeStyled(s: string): string {
+  return gray(s);
+}
+
+function noticeHighlightStyled(s: string): string {
+  return reset(dim(bold(s)));
 }
