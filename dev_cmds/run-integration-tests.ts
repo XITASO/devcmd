@@ -175,7 +175,7 @@ async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo
       ],
     });
 
-    if (!stdout.trim().startsWith("Example command for single-package-json example")) {
+    if (!stdout.includes("Example command for single-package-json example")) {
       console.log(red("single-package-json didn't print expected output."));
       console.log(red("Actual stdout was:"));
       console.log(red(stdout));
@@ -238,7 +238,7 @@ async function testMultiplePackageJsonsExample(tempImageName: string, devcmdCliI
       ],
     });
 
-    if (!stdout.trim().startsWith("Example command for multiple-package-jsons example")) {
+    if (!stdout.includes("Example command for multiple-package-jsons example")) {
       console.log(red("multiple-package-jsons didn't print expected output."));
       console.log(red("Actual stdout was:"));
       console.log(red(stdout));

@@ -1,35 +1,57 @@
-import { spawnSync } from "npm-run";
 import { promises as fs } from "fs";
+import { gray, bold, red } from "kleur/colors";
+import { spawnSync } from "npm-run";
 import path from "path";
 import { withCmdOnWin } from "./utils/platform_utils";
+import { getDevcmdVersion } from "./utils/version_utils";
 
 const devCmdsDirName = "dev_cmds";
 
 export function devcmd(...args: string[]) {
+  printDevcmdHeader();
   assertInDevCmdsDir();
-
-  if (!args || args.length === 0) {
-    abort("No script specified.");
-  }
+  assertArgsValid(args);
 
   const [scriptName, ...scriptArgs] = args;
+  printScriptHeader(scriptName, scriptArgs);
   findAndRunScript(process.cwd(), scriptName, scriptArgs).catch((reason) => {
     const message = reason instanceof Error ? reason.message : `${reason}`;
     abort(message);
   });
 }
 
+function printDevcmdHeader() {
+  process.stdout.write(gray(bold(`devcmd v${getDevcmdVersion()}`)));
+}
+
 function assertInDevCmdsDir() {
   const cwd = process.cwd();
 
   if (path.basename(cwd) !== devCmdsDirName) {
-    const message = `The devcmd function must be run inside the ${devCmdsDirName} directory, but CWD is: ${cwd}`;
+    const message = `\nThe devcmd function must be run inside the ${devCmdsDirName} directory, but CWD is: ${cwd}`;
     abort(message);
   }
 }
 
+function assertArgsValid(args: string[]): args is string[] {
+  if (!args || args.length === 0) {
+    abort("\nNo script specified.");
+  }
+  return true;
+}
+
+function printScriptHeader(scriptName: string, scriptArgs: string[]) {
+  let argsString = "";
+  if (!!scriptArgs && scriptArgs.length > 0) {
+    argsString += gray(" with args [");
+    argsString += (scriptArgs || []).map((a) => gray('"') + a + gray('"')).join(",");
+    argsString += gray("]");
+  }
+  console.log(`${gray(": cmd")} ${scriptName}${argsString}`);
+}
+
 function abort(message: string, exitCode: number = 1): never {
-  console.error(message);
+  console.error(red(message));
   process.exit(exitCode);
 }
 
