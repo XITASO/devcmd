@@ -9,10 +9,14 @@
   "homepage": "https://github.com/XITASO/devcmd#readme",
   "author": "XITASO GmbH",
   "license": "MIT",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./from-cli": "./dist/from-cli/index.js"
+  },
   "bin": {
-    "devcmd": "bin/devcmd.js"
+    "devcmd": "./bin/devcmd.js"
   },
   "files": [
     "/bin",

@@ -2,13 +2,13 @@ import { promises as fs } from "fs";
 import { gray, bold, red, reset } from "kleur/colors";
 import { spawnSync } from "npm-run";
 import path from "path";
-import { formatCommandArgs, formatCommandName } from "./utils/format_utils";
-import { withCmdOnWin } from "./utils/platform_utils";
-import { getDevcmdVersion } from "./utils/version_utils";
+import { formatCommandArgs, formatCommandName } from "../utils/format_utils";
+import { withCmdOnWin } from "../utils/platform_utils";
+import { getDevcmdVersion } from "../utils/version_utils";
 
 const devCmdsDirName = "dev_cmds";
 
-export function devcmd(...args: string[]) {
+export function run(...args: string[]) {
   printDevcmdHeader();
   assertInDevCmdsDir();
   assertArgsValid(args);
