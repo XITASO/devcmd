@@ -164,7 +164,7 @@ async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo
       ],
     });
 
-    const { stdout } = await execToString({
+    const { stdout, stderr } = await execToString({
       command: DOCKER_COMMAND,
       args: [
         "exec",
@@ -175,10 +175,12 @@ async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo
       ],
     });
 
-    if (!stdout.trim().startsWith("Example command for single-package-json example")) {
+    if (!stdout.includes("Example command for single-package-json example")) {
       console.log(red("single-package-json didn't print expected output."));
-      console.log(red("Actual output was:"));
+      console.log(red("Actual stdout was:"));
       console.log(red(stdout));
+      console.log(red("Stderr was:"));
+      console.log(red(stderr));
 
       throw new Error("single-package-json didn't print expected output (see log above)");
     } else {
@@ -221,7 +223,7 @@ async function testMultiplePackageJsonsExample(tempImageName: string, devcmdCliI
       ],
     });
 
-    const { stdout } = await execToString({
+    const { stdout, stderr } = await execToString({
       command: DOCKER_COMMAND,
       args: [
         "exec",
@@ -236,10 +238,12 @@ async function testMultiplePackageJsonsExample(tempImageName: string, devcmdCliI
       ],
     });
 
-    if (!stdout.trim().startsWith("Example command for multiple-package-jsons example")) {
+    if (!stdout.includes("Example command for multiple-package-jsons example")) {
       console.log(red("multiple-package-jsons didn't print expected output."));
-      console.log(red("Actual output was:"));
+      console.log(red("Actual stdout was:"));
       console.log(red(stdout));
+      console.log(red("Stderr was:"));
+      console.log(red(stderr));
 
       throw new Error("multiple-package-jsons didn't print expected output (see log above)");
     } else {

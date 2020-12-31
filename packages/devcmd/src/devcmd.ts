@@ -1,34 +1,55 @@
-import { spawnSync } from "npm-run";
 import { promises as fs } from "fs";
+import { gray, bold, red, reset } from "kleur/colors";
+import { spawnSync } from "npm-run";
 import path from "path";
+import { formatCommandArgs, formatCommandName } from "./utils/format_utils";
+import { withCmdOnWin } from "./utils/platform_utils";
+import { getDevcmdVersion } from "./utils/version_utils";
 
 const devCmdsDirName = "dev_cmds";
 
 export function devcmd(...args: string[]) {
+  printDevcmdHeader();
   assertInDevCmdsDir();
-
-  if (!args || args.length === 0) {
-    abort("No script specified.");
-  }
+  assertArgsValid(args);
 
   const [scriptName, ...scriptArgs] = args;
+  printScriptHeader(scriptName, scriptArgs);
   findAndRunScript(process.cwd(), scriptName, scriptArgs).catch((reason) => {
     const message = reason instanceof Error ? reason.message : `${reason}`;
     abort(message);
   });
 }
 
+function printDevcmdHeader() {
+  process.stdout.write(gray(bold(`devcmd v${getDevcmdVersion()}`)));
+}
+
 function assertInDevCmdsDir() {
   const cwd = process.cwd();
 
   if (path.basename(cwd) !== devCmdsDirName) {
-    const message = `The devcmd function must be run inside the ${devCmdsDirName} directory, but CWD is: ${cwd}`;
+    const message = `\nThe devcmd function must be run inside the ${devCmdsDirName} directory, but CWD is: ${cwd}`;
     abort(message);
   }
 }
 
+function assertArgsValid(args: string[]): args is string[] {
+  if (!args || args.length === 0) {
+    abort("\nNo script specified.");
+  }
+  return true;
+}
+
+function printScriptHeader(commandName: string, commandArgs: string[]) {
+  const commandString = formatCommandName(commandName, gray, reset);
+  const argsString =
+    !!commandArgs && commandArgs.length > 0 ? gray(" with args ") + formatCommandArgs(commandArgs, gray, reset) : "";
+  console.log(`${gray(": cmd")} ${commandString}${argsString}`);
+}
+
 function abort(message: string, exitCode: number = 1): never {
-  console.error(message);
+  console.error(red(message));
   process.exit(exitCode);
 }
 
@@ -50,14 +71,6 @@ async function isFile(path: string): Promise<boolean> {
     if (error.code === "ENOENT") return false; // TODO double-check code and comparison value
     throw error;
   }
-}
-
-function isWindows(): boolean {
-  return process.platform === "win32";
-}
-
-function withCmdOnWin(baseCmd: string): string {
-  return isWindows() ? `${baseCmd}.cmd` : baseCmd;
 }
 
 const scriptRunners = [
