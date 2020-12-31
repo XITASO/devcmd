@@ -55,7 +55,7 @@ async function runInDevCmdsDir(dirPath: string) {
   const [, , ...args] = process.argv;
 
   // TODO: use spawn or so instead
-  execFileSync("node", ["-e", `require('devcmd').devcmd(...process.argv.slice(1))`, ...args], {
+  execFileSync("node", ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], {
     cwd: dirPath,
     stdio: "inherit",
   });
