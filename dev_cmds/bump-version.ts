@@ -3,7 +3,7 @@ import { blue, cyan, dim, green, yellow } from "kleur/colors";
 import fs from "fs-extra";
 import path from "path";
 import prompts from "prompts";
-import { YARN_COMMAND } from "./utils/commands";
+import { GIT_COMMAND, YARN_COMMAND } from "./utils/commands";
 import {
   devcmdCliPackageDir,
   devcmdPackageDir,
@@ -12,16 +12,15 @@ import {
   singlePackageJsonExampleDir,
 } from "./utils/paths";
 import { runAsyncMain } from "./utils/run_utils";
+import { execToString } from "./utils/exec_process";
 
 async function main(args: string[]) {
   const packageInfo = await selectPackage();
   console.log();
 
-  await packageInfo.f();
+  const { newVersion, updatedFiles } = await packageInfo.f();
 
-  console.log();
-  console.log(yellow("You should commit these changes."));
-  console.log();
+  await commitChanges(packageInfo.package, updatedFiles, newVersion);
 }
 
 async function selectPackage(): Promise<PackageInfo> {
@@ -36,10 +35,9 @@ async function selectPackage(): Promise<PackageInfo> {
   );
   return response.package;
 }
-
 interface PackageInfo {
   package: string;
-  f: () => Promise<void>;
+  f: () => Promise<{ updatedFiles: string[]; newVersion: string }>;
 }
 
 const PACKAGE_JSON_FILENAME = "package.json";
@@ -94,6 +92,8 @@ async function bumpVersionDevcmd() {
       return packageJson;
     }
   );
+
+  return { updatedFiles: [devcmdPackageJsonPath, singlePJPackageJsonPath, multiplePJsPackageJsonPath], newVersion };
 }
 
 async function bumpVersionDevcmdCli() {
@@ -125,6 +125,56 @@ async function bumpVersionDevcmdCli() {
     packageJson["dependencies"][devcmdCliPackageName] = newDependencyVersion;
     return packageJson;
   });
+
+  return { updatedFiles: [devcmdCliPackageJsonPath, devcmdPackageJsonPath], newVersion };
+}
+
+async function commitChanges(packageName: string, updatedFiles: string[], newVersion: string) {
+  console.log();
+  console.log("The following files were updated:");
+  for (const filepath of updatedFiles) {
+    console.log(`    ${filepath}`);
+  }
+  console.log(yellow("You should commit these changes."));
+  console.log();
+
+  const gitBranch = await getGitBranch();
+  const gitHash = await getGitHash();
+  console.log(`You are on branch ${cyan(gitBranch)} (at ${cyan(dim(gitHash.substring(0, 8)))}).`);
+
+  const commitMessage = `Bump package ${packageName} to v${newVersion}`;
+  const tagName = `${packageName}/v${newVersion}`;
+  console.log(
+    `This script can automatically commit these files with comment ` +
+      `"${cyan(commitMessage)}" and tag it as ${blue(tagName)}.`
+  );
+  console.log("Or you can commit it manually.");
+  console.log();
+
+  const response = await prompts({
+    type: "confirm",
+    name: "shouldCommit",
+    initial: true,
+    message: "Commit and tag now?",
+  });
+  console.log();
+
+  if (!response.shouldCommit) {
+    console.log(yellow("Doing nothing."));
+  } else {
+    console.log("Committing and tagging...");
+
+    await execPiped({ command: GIT_COMMAND, args: ["add", ...updatedFiles] });
+    await execPiped({ command: GIT_COMMAND, args: ["commit", "-m", commitMessage] });
+    await execPiped({ command: GIT_COMMAND, args: ["tag", tagName] });
+
+    const newGitHash = await getGitHash();
+    console.log();
+    console.log(
+      green("Success. ") + `Created new commit ${cyan(newGitHash.substring(0, 8))} and tagged it as ${blue(tagName)}`
+    );
+    console.log();
+  }
 }
 
 function printPackageJsonFieldUpdate(
@@ -194,15 +244,19 @@ async function formatFile(absolutePath: string) {
   });
 }
 
-function getPackageJsonInfo(dir: string): { name: string; version: string } {
-  const packageJson = require(path.resolve(dir, "package.json"));
-  const { name, version } = packageJson;
-  return { name, version };
-}
-
 function promptCanceled() {
   console.log(yellow("Aborting as requested."));
   process.exit();
+}
+
+async function getGitHash(): Promise<string> {
+  const { stdout } = await execToString({ command: GIT_COMMAND, args: ["rev-parse", "HEAD"] });
+  return stdout.trim();
+}
+
+async function getGitBranch(): Promise<string> {
+  const { stdout } = await execToString({ command: GIT_COMMAND, args: ["branch", "--show-current"] });
+  return stdout.trim();
 }
 
 runAsyncMain(main);
