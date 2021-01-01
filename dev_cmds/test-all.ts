@@ -1,6 +1,6 @@
 import { exec } from "devcmd";
 import { YARN_COMMAND } from "./utils/commands";
-import { repoRoot } from "./utils/directories";
+import { repoRoot } from "./utils/paths";
 import { runAsyncMain } from "./utils/run_utils";
 
 async function main() {
