@@ -13,17 +13,19 @@ import path from "path";
 import fs from "fs-extra";
 import { red, green, inverse } from "kleur/colors";
 import { DEVCMD_COMMAND, DOCKER_COMMAND, NPM_COMMAND } from "./utils/commands";
-import { repoRoot } from "./utils/directories";
+import {
+  devcmdCliPackageDir,
+  devcmdPackageDir,
+  multiplePackageJsonsExampleDir,
+  repoRoot,
+  singlePackageJsonExampleDir,
+} from "./utils/paths";
 import { runAsyncMain } from "./utils/run_utils";
 import { execToString } from "./utils/exec_process";
 
 const VERDACCIO_CONTAINER_NAME = "devcmd_verdaccio";
 const VERDACCIO_STORAGE_VOLUME_NAME = "devcmd_verdaccio_storage";
 const LOCAL_REGISTRY_URL = "http://0.0.0.0:4873";
-
-const packagesDir = path.resolve(repoRoot, "packages");
-const devcmdCliPackageDir = path.resolve(packagesDir, "devcmd-cli");
-const devcmdPackageDir = path.resolve(packagesDir, "devcmd");
 
 const verdaccioConfigDir = path.resolve(repoRoot, "verdaccio");
 const dockerMountDir = path.resolve(repoRoot, "docker-mount");
@@ -145,7 +147,7 @@ async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo
 
     await exec({
       command: DOCKER_COMMAND,
-      args: ["cp", path.resolve(repoRoot, "examples/single-package-json"), `${containerName}:/tmp/devcmd_test`],
+      args: ["cp", singlePackageJsonExampleDir, `${containerName}:/tmp/devcmd_test`],
     });
 
     await exec({
@@ -202,7 +204,7 @@ async function testMultiplePackageJsonsExample(tempImageName: string, devcmdCliI
 
     await exec({
       command: DOCKER_COMMAND,
-      args: ["cp", path.resolve(repoRoot, "examples/multiple-package-jsons"), `${containerName}:/tmp/devcmd_test`],
+      args: ["cp", multiplePackageJsonsExampleDir, `${containerName}:/tmp/devcmd_test`],
     });
 
     await exec({
