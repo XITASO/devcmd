@@ -8,7 +8,7 @@
  * - extract some common functionality
  */
 
-import { exec } from "devcmd";
+import { execPiped } from "devcmd";
 import path from "path";
 import fs from "fs-extra";
 import { red, green, inverse } from "kleur/colors";
@@ -31,7 +31,7 @@ const verdaccioConfigDir = path.resolve(repoRoot, "verdaccio");
 const dockerMountDir = path.resolve(repoRoot, "docker-mount");
 
 async function main() {
-  await exec({ command: DEVCMD_COMMAND, args: ["build-all"] });
+  await execPiped({ command: DEVCMD_COMMAND, args: ["build-all"] });
 
   await fs.remove(dockerMountDir);
 
@@ -43,16 +43,16 @@ async function main() {
   await fs.copy(packedDevcmd.packedFilePath, path.join(dockerMountDir, packedDevcmd.packedFileName));
 
   try {
-    await exec({ command: DOCKER_COMMAND, args: ["rm", "--force", VERDACCIO_CONTAINER_NAME] });
+    await execPiped({ command: DOCKER_COMMAND, args: ["rm", "--force", VERDACCIO_CONTAINER_NAME] });
   } catch {}
 
   try {
-    await exec({ command: DOCKER_COMMAND, args: ["volume", "rm", "--force", VERDACCIO_STORAGE_VOLUME_NAME] });
+    await execPiped({ command: DOCKER_COMMAND, args: ["volume", "rm", "--force", VERDACCIO_STORAGE_VOLUME_NAME] });
   } catch {}
 
-  await exec({ command: DOCKER_COMMAND, args: ["volume", "create", VERDACCIO_STORAGE_VOLUME_NAME] });
+  await execPiped({ command: DOCKER_COMMAND, args: ["volume", "create", VERDACCIO_STORAGE_VOLUME_NAME] });
 
-  await exec({
+  await execPiped({
     command: DOCKER_COMMAND,
     args: [
       "run",
@@ -67,7 +67,7 @@ async function main() {
 
   await delay(2000);
 
-  await exec({
+  await execPiped({
     command: DOCKER_COMMAND,
     args: [
       "exec",
@@ -83,10 +83,10 @@ async function main() {
     ],
   });
 
-  await exec({ command: DOCKER_COMMAND, args: ["stop", VERDACCIO_CONTAINER_NAME] });
+  await execPiped({ command: DOCKER_COMMAND, args: ["stop", VERDACCIO_CONTAINER_NAME] });
 
   const tempImageName = `devcmd_${Date.now()}`;
-  await exec({ command: DOCKER_COMMAND, args: ["commit", VERDACCIO_CONTAINER_NAME, tempImageName] });
+  await execPiped({ command: DOCKER_COMMAND, args: ["commit", VERDACCIO_CONTAINER_NAME, tempImageName] });
 
   await testSinglePackageJsonExample(tempImageName, packedDevcmdCli);
   await testMultiplePackageJsonsExample(tempImageName, packedDevcmdCli);
@@ -96,7 +96,7 @@ async function runWithDevcmdContainer(tempImageName: string, actions: (container
   const containerName = `devcmd_test_${Date.now()}`;
 
   try {
-    await exec({
+    await execPiped({
       command: DOCKER_COMMAND,
       args: [
         "run",
@@ -113,13 +113,13 @@ async function runWithDevcmdContainer(tempImageName: string, actions: (container
     await actions(containerName);
   } finally {
     try {
-      await exec({ command: DOCKER_COMMAND, args: ["rm", "--force", containerName] });
+      await execPiped({ command: DOCKER_COMMAND, args: ["rm", "--force", containerName] });
     } catch {}
   }
 }
 
 async function installDevcmdCliGlobally(containerName: string, devcmdCliInfo: NpmPackResult) {
-  await exec({
+  await execPiped({
     command: DOCKER_COMMAND,
     args: [
       "exec",
@@ -140,22 +140,22 @@ async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo
   await runWithDevcmdContainer(tempImageName, async (containerName) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
 
-    await exec({
+    await execPiped({
       command: DOCKER_COMMAND,
       args: ["exec", containerName, "sh", "-c", "mkdir /tmp/devcmd_test"],
     });
 
-    await exec({
+    await execPiped({
       command: DOCKER_COMMAND,
       args: ["cp", singlePackageJsonExampleDir, `${containerName}:/tmp/devcmd_test`],
     });
 
-    await exec({
+    await execPiped({
       command: DOCKER_COMMAND,
       args: ["exec", "--user", "root", containerName, "chown", "-R", "verdaccio", "/tmp/devcmd_test"],
     });
 
-    await exec({
+    await execPiped({
       command: DOCKER_COMMAND,
       args: [
         "exec",
@@ -197,22 +197,22 @@ async function testMultiplePackageJsonsExample(tempImageName: string, devcmdCliI
   await runWithDevcmdContainer(tempImageName, async (containerName) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
 
-    await exec({
+    await execPiped({
       command: DOCKER_COMMAND,
       args: ["exec", containerName, "sh", "-c", "mkdir /tmp/devcmd_test"],
     });
 
-    await exec({
+    await execPiped({
       command: DOCKER_COMMAND,
       args: ["cp", multiplePackageJsonsExampleDir, `${containerName}:/tmp/devcmd_test`],
     });
 
-    await exec({
+    await execPiped({
       command: DOCKER_COMMAND,
       args: ["exec", "--user", "root", containerName, "chown", "-R", "verdaccio", "/tmp/devcmd_test"],
     });
 
-    await exec({
+    await execPiped({
       command: DOCKER_COMMAND,
       args: [
         "exec",
@@ -276,7 +276,7 @@ async function npmPack(packageDir: string): Promise<NpmPackResult> {
   const name = packageJson["name"];
   const version = packageJson["version"];
 
-  await exec({ command: NPM_COMMAND, args: ["pack"], options: { cwd: packageDir } });
+  await execPiped({ command: NPM_COMMAND, args: ["pack"], options: { cwd: packageDir } });
 
   const packedFileName = `${name}-${version}.tgz`;
   const packedFilePath = path.join(packageDir, packedFileName);

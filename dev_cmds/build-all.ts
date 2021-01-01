@@ -1,10 +1,10 @@
-import { exec } from "devcmd";
+import { execPiped } from "devcmd";
 import { YARN_COMMAND } from "./utils/commands";
 import { repoRoot } from "./utils/paths";
 import { runAsyncMain } from "./utils/run_utils";
 
 async function main() {
-  await exec({
+  await execPiped({
     command: YARN_COMMAND,
     args: ["workspace", "devcmd-cli", "build"],
     options: {
@@ -12,7 +12,7 @@ async function main() {
     },
   });
 
-  await exec({
+  await execPiped({
     command: YARN_COMMAND,
     args: ["workspace", "devcmd", "build"],
     options: {
