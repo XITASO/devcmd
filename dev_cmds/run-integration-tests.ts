@@ -8,10 +8,10 @@
  * - extract some common functionality
  */
 
-import { execPiped } from "devcmd";
-import path from "path";
-import fs from "fs-extra";
+import { execPiped, execToString } from "devcmd";
 import { red, green, inverse } from "kleur/colors";
+import fs from "fs-extra";
+import path from "path";
 import { DEVCMD_COMMAND, DOCKER_COMMAND, NPM_COMMAND } from "./utils/commands";
 import {
   devcmdCliPackageDir,
@@ -21,7 +21,6 @@ import {
   singlePackageJsonExampleDir,
 } from "./utils/paths";
 import { runAsyncMain } from "./utils/run_utils";
-import { execToString } from "./utils/exec_process";
 
 const VERDACCIO_CONTAINER_NAME = "devcmd_verdaccio";
 const VERDACCIO_STORAGE_VOLUME_NAME = "devcmd_verdaccio_storage";

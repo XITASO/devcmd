@@ -1,10 +1,4 @@
-function isWindows(): boolean {
-  return process.platform === "win32";
-}
-
-function withCmdOnWin(baseCmd: string): string {
-  return isWindows() ? `${baseCmd}.cmd` : baseCmd;
-}
+import { withCmdOnWin } from "devcmd";
 
 export const DEVCMD_COMMAND = withCmdOnWin("devcmd");
 export const DOCKER_COMMAND = "docker";
