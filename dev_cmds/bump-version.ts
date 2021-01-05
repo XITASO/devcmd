@@ -1,4 +1,4 @@
-import { exec as execPiped } from "devcmd";
+import { execPiped, execToString } from "devcmd";
 import { blue, cyan, dim, green, yellow } from "kleur/colors";
 import fs from "fs-extra";
 import path from "path";
@@ -12,7 +12,6 @@ import {
   singlePackageJsonExampleDir,
 } from "./utils/paths";
 import { runAsyncMain } from "./utils/run_utils";
-import { execToString } from "./utils/exec_process";
 
 async function main(args: string[]) {
   const packageInfo = await selectPackage();
