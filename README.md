@@ -85,7 +85,7 @@ $ yarn global add devcmd-cli
 $ npm install --global devcmd-cli
 ```
 
-Once installed, running `devcmd` looks for the closest "dev*cmds" directory and starts command you entered \_with the locally installed `devcmd` package there*. This way, you don't have to synchronize the versions of DevCmd you are using in different projects, and you can use the global launcher with a wide range of `devcmd` versions.
+Once installed, running `devcmd` looks for the closest _"dev_cmds"_ directory and starts command you entered _with the locally installed `devcmd` package there_. This way, you don't have to synchronize the versions of DevCmd you are using in different projects, and you can use the global launcher with a wide range of `devcmd` versions.
 
 Going back to the example "build" command from above, you can now run it from the project directory or any subdirectories with:
 
