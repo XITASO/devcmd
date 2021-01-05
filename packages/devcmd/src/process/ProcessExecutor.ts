@@ -34,8 +34,10 @@ export class ProcessExecutor {
 
   constructor(consoleLike: ConsoleLike) {
     this.consoleLike = new SafeConsoleLike(consoleLike);
+    this.execInTty = this.execInTty.bind(this);
     this.execPiped = this.execPiped.bind(this);
     this.execPipedParallel = this.execPipedParallel.bind(this);
+    this.execToString = this.execToString.bind(this);
   }
 
   /**
