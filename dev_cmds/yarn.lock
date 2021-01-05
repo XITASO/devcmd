@@ -58,18 +58,18 @@ create-require@^1.1.0:
   resolved "https://registry.yarnpkg.com/create-require/-/create-require-1.1.1.tgz#c1d7e8f1e5f6cfc9ff65f9cd352d37348756c333"
   integrity sha512-dcKFX3jn0MpIaXjisoRvexIJVEKzaq7z2rZKxf+MSr9TkdmHmsU4m2lcLojrj/FHl8mk5VxMmYA+ftRkP/3oKQ==
 
-devcmd-cli@^0.0.5:
-  version "0.0.5"
-  resolved "https://registry.yarnpkg.com/devcmd-cli/-/devcmd-cli-0.0.5.tgz#64fd923a55c3021052eac7908e327a4db95afe8d"
-  integrity sha512-TkhK5b8xrtTgKufgfLCGhoKlZ/JgzWMcvdhBFz5Nqd6FxgTzNvmoelz8kaBHDWxQ4GLizVsu/SE6sM3J98FIYA==
+devcmd-cli@^0.0.6:
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/devcmd-cli/-/devcmd-cli-0.0.6.tgz#2a80c3c2f18f48fdc1686e5580fa48cd86716525"
+  integrity sha512-ijx784HJupWPcEPZCBYAKTV9/wtlUzUONCQEkBNCTQExhG4n1UzI0Vm/9Sa5jyH+FcFpUkjm3kq6IhuuY9HFUA==
 
-devcmd@^0.0.5:
-  version "0.0.5"
-  resolved "https://registry.yarnpkg.com/devcmd/-/devcmd-0.0.5.tgz#f040693d862c9b3fe212a4f8533b9d524c06da9f"
-  integrity sha512-wbWL1R8cRLSXMLU2FmwX3KjFtbv7yTVnOV2piK5sDr0u3lD0JqWF3MTCMKbnZ0jrMJySZfW+Tl9F7OAXHbyVhA==
+devcmd@^0.0.6:
+  version "0.0.6"
+  resolved "https://registry.yarnpkg.com/devcmd/-/devcmd-0.0.6.tgz#443f64578cbdded406664707f8dfedb4dbe97be2"
+  integrity sha512-NckPhtu8BWyqOSl20xcbcboXqqna35GYZ0Qc9ZNnRWFjRXoKI2jLiM2m4feHaeS8Sr3hkJaQbMsBuKYYh8IRIg==
   dependencies:
     "@types/npm-run" "^5.0.0"
-    devcmd-cli "^0.0.5"
+    devcmd-cli "^0.0.6"
     kleur "^4.1.3"
     npm-run "^5.0.1"
 
