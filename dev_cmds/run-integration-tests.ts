@@ -8,7 +8,7 @@
  * - extract some common functionality
  */
 
-import { execPiped, execToString } from "devcmd";
+import { execPiped, execToString, runAsyncMain } from "devcmd";
 import { red, green, inverse } from "kleur/colors";
 import fs from "fs-extra";
 import path from "path";
@@ -20,7 +20,6 @@ import {
   repoRoot,
   singlePackageJsonExampleDir,
 } from "./utils/paths";
-import { runAsyncMain } from "./utils/run_utils";
 
 const VERDACCIO_CONTAINER_NAME = "devcmd_verdaccio";
 const VERDACCIO_STORAGE_VOLUME_NAME = "devcmd_verdaccio_storage";
