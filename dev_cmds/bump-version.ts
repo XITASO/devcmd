@@ -12,7 +12,7 @@ import {
   singlePackageJsonExampleDir,
 } from "./utils/paths";
 
-async function main(args: string[]) {
+async function main() {
   const packageInfo = await selectPackage();
   console.log();
 
