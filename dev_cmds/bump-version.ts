@@ -1,4 +1,4 @@
-import { execPiped, execToString } from "devcmd";
+import { execPiped, execToString, runAsyncMain } from "devcmd";
 import { blue, cyan, dim, green, yellow } from "kleur/colors";
 import fs from "fs-extra";
 import path from "path";
@@ -11,9 +11,8 @@ import {
   repoRoot,
   singlePackageJsonExampleDir,
 } from "./utils/paths";
-import { runAsyncMain } from "./utils/run_utils";
 
-async function main(args: string[]) {
+async function main() {
   const packageInfo = await selectPackage();
   console.log();
 
