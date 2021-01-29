@@ -63,10 +63,10 @@ devcmd-cli@^0.0.6:
   resolved "https://registry.yarnpkg.com/devcmd-cli/-/devcmd-cli-0.0.6.tgz#2a80c3c2f18f48fdc1686e5580fa48cd86716525"
   integrity sha512-ijx784HJupWPcEPZCBYAKTV9/wtlUzUONCQEkBNCTQExhG4n1UzI0Vm/9Sa5jyH+FcFpUkjm3kq6IhuuY9HFUA==
 
-devcmd@^0.0.6:
-  version "0.0.6"
-  resolved "https://registry.yarnpkg.com/devcmd/-/devcmd-0.0.6.tgz#443f64578cbdded406664707f8dfedb4dbe97be2"
-  integrity sha512-NckPhtu8BWyqOSl20xcbcboXqqna35GYZ0Qc9ZNnRWFjRXoKI2jLiM2m4feHaeS8Sr3hkJaQbMsBuKYYh8IRIg==
+devcmd@^0.0.7:
+  version "0.0.7"
+  resolved "https://registry.yarnpkg.com/devcmd/-/devcmd-0.0.7.tgz#4c4a95b707a9d61092dd88d66d4c512dae01777a"
+  integrity sha512-zlWzDBTJS1AQspS4F+eET9/Asdd8G/YSmlOXfSkFaQP0C2fvmsN4IOOnq4uIC+ABXW2BC9/cGKmPHSZPM0zsbw==
   dependencies:
     "@types/npm-run" "^5.0.0"
     devcmd-cli "^0.0.6"
