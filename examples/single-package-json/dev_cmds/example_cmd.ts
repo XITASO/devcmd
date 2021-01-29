@@ -1,7 +1,6 @@
 import { execPiped, execPipedParallel, runAsyncMain } from "devcmd";
 
-export async function example()
-{
+export async function example() {
   console.log("Example command for single-package-json example");
 
   await execPiped({
@@ -21,4 +20,4 @@ export async function example()
   });
 }
 
-runAsyncMain(example)
+runAsyncMain(example);

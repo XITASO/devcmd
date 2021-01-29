@@ -39,8 +39,7 @@
     // TypeScript
     import { execPiped, execPipedParallel, runAsyncMain } from "devcmd";
 
-    export async function example()
-    {
+    export async function example() {
       console.log("Example command for single-package-json example");
 
       await execPiped({
@@ -60,7 +59,7 @@
       });
     }
 
-    runAsyncMain(example)
+    runAsyncMain(example);
     ```
 
 - You can now run your commands with the locally installed `devcmd` CLI. We recommend using `yarn` or `npx` to invoke it:
