@@ -37,10 +37,10 @@
 
     ```ts
     // TypeScript
-    import { execPiped, execPipedParallel } from "devcmd";
+    import { execPiped, execPipedParallel, runAsyncMain } from "devcmd";
 
-    (async () => {
-      console.log("My first Dev Command!");
+    export async function example() {
+      console.log("Example command for single-package-json example");
 
       await execPiped({
         command: "node",
@@ -48,13 +48,18 @@
       });
 
       await execPipedParallel({
-        nodeVersion: { command: "npm", args: ["build", "--prod"] },
-        npmVersion: { command: "npm", args: ["test"] },
+        nodeVersion: {
+          command: "node",
+          args: ["-v"],
+        },
+        npmVersion: {
+          command: "npm",
+          args: ["--version"],
+        },
       });
-    })().catch((e) => {
-      console.error(e);
-      process.exit(1);
-    });
+    }
+
+    runAsyncMain(example);
     ```
 
 - You can now run your commands with the locally installed `devcmd` CLI. We recommend using `yarn` or `npx` to invoke it:
