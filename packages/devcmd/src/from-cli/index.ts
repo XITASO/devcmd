@@ -83,7 +83,8 @@ async function findAndRunScript(devCmdsDir: string, commandName: string, command
     const scriptFilepath = path.join(devCmdsDir, `${commandName}.${extension}`);
     if (await isFile(scriptFilepath)) {
       // TODO: use spawn or so instead
-      spawnSync(withCmdOnWin(launcher), [scriptFilepath, ...commandArgs], { stdio: "inherit" });
+      const { status } = spawnSync(withCmdOnWin(launcher), [scriptFilepath, ...commandArgs], { stdio: "inherit" });
+      if (status !== null && status != 0) throw new Error(`Process failed with exit code ${status}`);
 
       return;
     }
