@@ -30,11 +30,66 @@ const dockerMountDir = path.resolve(repoRoot, "docker-mount");
 
 async function main(): Promise<void> {
   await execPiped({ command: DEVCMD_COMMAND, args: ["build-all"] });
-
-  await fs.remove(dockerMountDir);
-
   const packedDevcmdCli = await npmPack(devcmdCliPackageDir);
   const packedDevcmd = await npmPack(devcmdPackageDir);
+
+  const { tempImageName } = await createIntegrationTestBaseImage(packedDevcmd, packedDevcmdCli);
+
+  const testGroupFactories = [createSinglePackageJsonExampleTestGroup, createMultiplePackageJsonsExampleTestGroup];
+  const testGroups = createIntegrationTestGroups(packedDevcmdCli, testGroupFactories);
+  await runIntegrationTests(tempImageName, testGroups);
+}
+
+type TestGroupFactory = (devcmdCliInfo: NpmPackResult) => TestGroup;
+
+function createIntegrationTestGroups(
+  packedDevcmdCli: NpmPackResult,
+  testGroupFactories: ReadonlyArray<TestGroupFactory>
+): ReadonlyArray<TestGroup> {
+  return testGroupFactories.map((f) => f(packedDevcmdCli));
+}
+
+async function runIntegrationTests(tempImageName: string, testGroups: ReadonlyArray<TestGroup>) {
+  const results: TestGroupResultInfo[] = [];
+  for (const testGroup of testGroups) {
+    const result = await runTestGroupWithDevcmdContainer(tempImageName, testGroup);
+    results.push(result);
+  }
+
+  console.log("\n\n");
+  console.log("Test results:\n");
+  for (const groupResult of results) {
+    const groupSuccess = groupResult.testResults.every((r) => r.result === "success");
+
+    if (groupSuccess) {
+      console.log(`  ${bgGreen("  OK  ")} ${green(groupResult.name)}`);
+    } else {
+      console.log(`  ${bgRed(" FAIL ")} ${red(groupResult.name)}`);
+    }
+
+    for (const testResult of groupResult.testResults) {
+      switch (testResult.result) {
+        case "success":
+          console.log(`    ${bgGreen("  OK  ")} ${green(testResult.name)}`);
+          break;
+        case "fail":
+          console.log(`    ${bgRed(" FAIL ")} ${red(testResult.name)}`);
+          break;
+        case "error":
+          console.log(`    ${bgRed(" ERR  ")} ${red(testResult.name)}`);
+          break;
+        default:
+          throw new Error(`Unhandled test result kind '${testResult.result}'`);
+      }
+    }
+  }
+}
+
+async function createIntegrationTestBaseImage(
+  packedDevcmd: NpmPackResult,
+  packedDevcmdCli: NpmPackResult
+): Promise<{ tempImageName: string }> {
+  await fs.remove(dockerMountDir);
 
   await fs.mkdirp(dockerMountDir);
   await fs.chmod(dockerMountDir, "777");
@@ -75,7 +130,7 @@ async function main(): Promise<void> {
       "-c",
       [
         "cd /devcmd_install",
-        `npx npm-auth-to-token -u test -p test -e test@test.com -r ${LOCAL_REGISTRY_URL}`, // TODO: do we want to keep using npm-auth-to-token?
+        `npx npm-auth-to-token -u test -p test -e test@test.com -r ${LOCAL_REGISTRY_URL}`,
         `npm --registry ${LOCAL_REGISTRY_URL} publish ${packedDevcmdCli.packedFileName}`,
         `npm --registry ${LOCAL_REGISTRY_URL} publish ${packedDevcmd.packedFileName}`,
       ].join(" && "),
@@ -86,45 +141,7 @@ async function main(): Promise<void> {
 
   const tempImageName = `devcmd_${Date.now()}`;
   await execPiped({ command: DOCKER_COMMAND, args: ["commit", VERDACCIO_CONTAINER_NAME, tempImageName] });
-
-  const testGroups = [
-    createSinglePackageJsonExampleTestGroup(packedDevcmdCli),
-    createMultiplePackageJsonsExampleTestGroup(packedDevcmdCli),
-  ];
-
-  const results: TestGroupResultInfo[] = [];
-  for (const testGroup of testGroups) {
-    const result = await runTestGroupWithDevcmdContainer(tempImageName, testGroup);
-    results.push(result);
-  }
-
-  console.log("\n\n");
-  console.log("Test results:\n");
-  for (const groupResult of results) {
-    const groupSuccess = groupResult.testResults.every((r) => r.result === "success");
-
-    if (groupSuccess) {
-      console.log(`  ${bgGreen("  OK  ")} ${green(groupResult.name)}`);
-    } else {
-      console.log(`  ${bgRed(" FAIL ")} ${red(groupResult.name)}`);
-    }
-
-    for (const testResult of groupResult.testResults) {
-      switch (testResult.result) {
-        case "success":
-          console.log(`    ${bgGreen("  OK  ")} ${green(testResult.name)}`);
-          break;
-        case "fail":
-          console.log(`    ${bgRed(" FAIL ")} ${red(testResult.name)}`);
-          break;
-        case "error":
-          console.log(`    ${bgRed(" ERR  ")} ${red(testResult.name)}`);
-          break;
-        default:
-          throw new Error(`Unhandled test result kind '${testResult.result}'`);
-      }
-    }
-  }
+  return { tempImageName };
 }
 
 async function runWithDevcmdContainer<R>(
