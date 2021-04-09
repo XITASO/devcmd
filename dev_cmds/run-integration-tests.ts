@@ -37,6 +37,7 @@ async function main() {
   const packedDevcmd = await npmPack(devcmdPackageDir);
 
   await fs.mkdirp(dockerMountDir);
+  await fs.chmod(dockerMountDir, "777");
   await fs.copy(packedDevcmdCli.packedFilePath, path.join(dockerMountDir, packedDevcmdCli.packedFileName));
   await fs.copy(packedDevcmd.packedFilePath, path.join(dockerMountDir, packedDevcmd.packedFileName));
 
