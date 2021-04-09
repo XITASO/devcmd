@@ -10,4 +10,15 @@ const examplesDir = resolve(repoRoot, "examples");
 const singlePackageJsonExampleDir = resolve(examplesDir, "single-package-json");
 const multiplePackageJsonsExampleDir = resolve(examplesDir, "multiple-package-jsons");
 
-export { devcmdCliPackageDir, devcmdPackageDir, multiplePackageJsonsExampleDir, repoRoot, singlePackageJsonExampleDir };
+const verdaccioConfigDir = resolve(repoRoot, "verdaccio");
+const dockerMountDir = resolve(repoRoot, "docker-mount");
+
+export {
+  devcmdCliPackageDir,
+  devcmdPackageDir,
+  dockerMountDir,
+  multiplePackageJsonsExampleDir,
+  repoRoot,
+  singlePackageJsonExampleDir,
+  verdaccioConfigDir,
+};
