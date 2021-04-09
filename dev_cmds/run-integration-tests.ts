@@ -7,6 +7,7 @@ import { npmPack, NpmPackResult } from "./utils/npm-utils";
 import {
   createIntegrationTestGroups,
   LOCAL_REGISTRY_URL,
+  printTestReport,
   runIntegrationTests,
   VERDACCIO_CONTAINER_NAME,
   VERDACCIO_STORAGE_VOLUME_NAME,
@@ -28,7 +29,8 @@ async function main(): Promise<void> {
    */
 
   const testGroups = createIntegrationTestGroups(packedDevcmdCli, integrationTestGroupFactories);
-  await runIntegrationTests(tempImageName, testGroups);
+  const results = await runIntegrationTests(tempImageName, testGroups);
+  printTestReport(results);
 }
 
 async function createIntegrationTestBaseImage(

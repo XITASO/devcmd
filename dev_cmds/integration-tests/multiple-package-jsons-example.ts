@@ -1,5 +1,5 @@
 import { execPiped, execToString } from "devcmd";
-import { red, green, inverse } from "kleur/colors";
+import { red } from "kleur/colors";
 import { DOCKER_COMMAND } from "../utils/commands";
 import { NpmPackResult } from "../utils/npm-utils";
 import { multiplePackageJsonsExampleDir } from "../utils/paths";
@@ -65,9 +65,6 @@ export function createMultiplePackageJsonsExampleTestGroup(devcmdCliInfo: NpmPac
 
       return "fail";
     } else {
-      console.log();
-      console.log(green(inverse(" OK ") + " multiple-package-jsons"));
-      console.log();
       return "success";
     }
   };

@@ -1,5 +1,5 @@
 import { execPiped, execToString } from "devcmd";
-import { red, green, inverse } from "kleur/colors";
+import { red } from "kleur/colors";
 import { DOCKER_COMMAND } from "../utils/commands";
 import { NpmPackResult } from "../utils/npm-utils";
 import { singlePackageJsonExampleDir } from "../utils/paths";
@@ -60,9 +60,6 @@ export function createSinglePackageJsonExampleTestGroup(devcmdCliInfo: NpmPackRe
 
       return "fail";
     } else {
-      console.log();
-      console.log(green(inverse(" OK ") + " single-package-json"));
-      console.log();
       return "success";
     }
   };
