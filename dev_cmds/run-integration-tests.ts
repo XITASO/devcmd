@@ -21,6 +21,12 @@ async function main(): Promise<void> {
 
   const { tempImageName } = await createIntegrationTestBaseImage(packedDevcmd, packedDevcmdCli);
 
+  /*
+   * Wondering how to add integration test cases or groups?
+   *
+   * See integration-tests/README.md
+   */
+
   const testGroups = createIntegrationTestGroups(packedDevcmdCli, integrationTestGroupFactories);
   await runIntegrationTests(tempImageName, testGroups);
 }
