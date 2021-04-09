@@ -9,7 +9,7 @@
  */
 
 import { execPiped, execToString, runAsyncMain } from "devcmd";
-import { red, green, inverse } from "kleur/colors";
+import { red, green, inverse, bgGreen, bgRed } from "kleur/colors";
 import fs from "fs-extra";
 import path from "path";
 import { DEVCMD_COMMAND, DOCKER_COMMAND, NPM_COMMAND } from "./utils/commands";
@@ -28,7 +28,7 @@ const LOCAL_REGISTRY_URL = "http://0.0.0.0:4873";
 const verdaccioConfigDir = path.resolve(repoRoot, "verdaccio");
 const dockerMountDir = path.resolve(repoRoot, "docker-mount");
 
-async function main() {
+async function main(): Promise<void> {
   await execPiped({ command: DEVCMD_COMMAND, args: ["build-all"] });
 
   await fs.remove(dockerMountDir);
@@ -87,11 +87,50 @@ async function main() {
   const tempImageName = `devcmd_${Date.now()}`;
   await execPiped({ command: DOCKER_COMMAND, args: ["commit", VERDACCIO_CONTAINER_NAME, tempImageName] });
 
-  await testSinglePackageJsonExample(tempImageName, packedDevcmdCli);
-  await testMultiplePackageJsonsExample(tempImageName, packedDevcmdCli);
+  const testGroups = [
+    createSinglePackageJsonExampleTestGroup(packedDevcmdCli),
+    createMultiplePackageJsonsExampleTestGroup(packedDevcmdCli),
+  ];
+
+  const results: TestGroupResultInfo[] = [];
+  for (const testGroup of testGroups) {
+    const result = await runTestGroupWithDevcmdContainer(tempImageName, testGroup);
+    results.push(result);
+  }
+
+  console.log("\n\n");
+  console.log("Test results:\n");
+  for (const groupResult of results) {
+    const groupSuccess = groupResult.testResults.every((r) => r.result === "success");
+
+    if (groupSuccess) {
+      console.log(`  ${bgGreen("  OK  ")} ${green(groupResult.name)}`);
+    } else {
+      console.log(`  ${bgRed(" FAIL ")} ${red(groupResult.name)}`);
+    }
+
+    for (const testResult of groupResult.testResults) {
+      switch (testResult.result) {
+        case "success":
+          console.log(`    ${bgGreen("  OK  ")} ${green(testResult.name)}`);
+          break;
+        case "fail":
+          console.log(`    ${bgRed(" FAIL ")} ${red(testResult.name)}`);
+          break;
+        case "error":
+          console.log(`    ${bgRed(" ERR  ")} ${red(testResult.name)}`);
+          break;
+        default:
+          throw new Error(`Unhandled test result kind '${testResult.result}'`);
+      }
+    }
+  }
 }
 
-async function runWithDevcmdContainer(tempImageName: string, actions: (containerName: string) => Promise<void>) {
+async function runWithDevcmdContainer<R>(
+  tempImageName: string,
+  actions: (containerName: string) => Promise<R>
+): Promise<R> {
   const containerName = `devcmd_test_${Date.now()}`;
 
   try {
@@ -107,9 +146,9 @@ async function runWithDevcmdContainer(tempImageName: string, actions: (container
       ],
     });
 
-    await delay(2000);
+    await delay(5000);
 
-    await actions(containerName);
+    return await actions(containerName);
   } finally {
     try {
       await execPiped({ command: DOCKER_COMMAND, args: ["rm", "--force", containerName] });
@@ -135,8 +174,72 @@ async function installDevcmdCliGlobally(containerName: string, devcmdCliInfo: Np
   });
 }
 
-async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo: NpmPackResult) {
-  await runWithDevcmdContainer(tempImageName, async (containerName) => {
+type TestResult = "success" | "fail" | "error" | "skipped";
+
+interface TestResultInfo {
+  readonly name: string;
+  readonly result: TestResult;
+}
+
+interface TestGroupResultInfo {
+  readonly name: string;
+  readonly testResults: ReadonlyArray<TestResultInfo>;
+}
+
+interface TestCase {
+  readonly name: string;
+  readonly fn: TestFunction;
+}
+
+interface TestGroup {
+  readonly name: string;
+  readonly testCases: ReadonlyArray<TestCase>;
+}
+
+type TestFunction = (containerName: string) => Promise<TestResult>;
+
+async function runCatchingErrors(
+  testName: string,
+  testFunction: TestFunction,
+  containerName: string
+): Promise<TestResult> {
+  try {
+    return await testFunction(containerName);
+  } catch (e) {
+    console.error(`Error while running test ${testName}`);
+    return "error";
+  }
+}
+
+async function runTestGroupWithDevcmdContainer(
+  tempImageName: string,
+  testGroup: TestGroup
+): Promise<TestGroupResultInfo> {
+  return await runWithDevcmdContainer(tempImageName, async (containerName) => {
+    const testResults: TestResultInfo[] = [];
+    let skipTheRest = false;
+    for (const { name, fn } of testGroup.testCases) {
+      if (skipTheRest) {
+        testResults.push({ name, result: "skipped" });
+      } else {
+        const result = await runCatchingErrors(name, fn, containerName);
+
+        testResults.push({ name, result });
+        if (result === "error") {
+          skipTheRest = true;
+        }
+      }
+    }
+
+    return {
+      name: testGroup.name,
+      testResults,
+    };
+  });
+}
+
+function createSinglePackageJsonExampleTestGroup(devcmdCliInfo: NpmPackResult): TestGroup {
+  const setup: TestFunction = async (containerName: string) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
 
     await execPiped({
@@ -165,6 +268,11 @@ async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo
       ],
     });
 
+    return "success";
+  };
+
+  const runExampleCmd: TestFunction = async (containerName: string) => {
+    const exampleCmdCommandLine = `npx devcmd example_cmd`;
     const { stdout, stderr } = await execToString({
       command: DOCKER_COMMAND,
       args: [
@@ -172,7 +280,7 @@ async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo
         containerName,
         "sh",
         "-c",
-        ["cd /tmp/devcmd_test/single-package-json", `npx devcmd example_cmd`].join(" && "),
+        ["cd /tmp/devcmd_test/single-package-json", exampleCmdCommandLine].join(" && "),
       ],
     });
 
@@ -183,17 +291,23 @@ async function testSinglePackageJsonExample(tempImageName: string, devcmdCliInfo
       console.log(red("Stderr was:"));
       console.log(red(stderr));
 
-      throw new Error("single-package-json didn't print expected output (see log above)");
+      return "fail";
     } else {
       console.log();
       console.log(green(inverse(" OK ") + " single-package-json"));
       console.log();
+      return "success";
     }
-  });
+  };
+  const testCases = [
+    { name: "Setup", fn: setup },
+    { name: "Run example_cmd", fn: runExampleCmd },
+  ];
+  return { name: "single-package-json", testCases };
 }
 
-async function testMultiplePackageJsonsExample(tempImageName: string, devcmdCliInfo: NpmPackResult) {
-  await runWithDevcmdContainer(tempImageName, async (containerName) => {
+function createMultiplePackageJsonsExampleTestGroup(devcmdCliInfo: NpmPackResult): TestGroup {
+  const setup: TestFunction = async (containerName: string) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
 
     await execPiped({
@@ -224,6 +338,10 @@ async function testMultiplePackageJsonsExample(tempImageName: string, devcmdCliI
       ],
     });
 
+    return "success";
+  };
+
+  const runExampleCmd: TestFunction = async (containerName: string) => {
     const { stdout, stderr } = await execToString({
       command: DOCKER_COMMAND,
       args: [
@@ -246,13 +364,21 @@ async function testMultiplePackageJsonsExample(tempImageName: string, devcmdCliI
       console.log(red("Stderr was:"));
       console.log(red(stderr));
 
-      throw new Error("multiple-package-jsons didn't print expected output (see log above)");
+      return "fail";
     } else {
       console.log();
       console.log(green(inverse(" OK ") + " multiple-package-jsons"));
       console.log();
+      return "success";
     }
-  });
+  };
+
+  const testCases = [
+    { name: "Setup", fn: setup },
+    { name: "Run example_cmd", fn: runExampleCmd },
+  ];
+
+  return { name: "multiple-package-json", testCases };
 }
 
 function delay(ms: number): Promise<void> {
