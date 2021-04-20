@@ -5,8 +5,8 @@ import { NpmPackResult } from "../utils/npm-utils";
 import { multiplePackageJsonsExampleDir } from "../utils/paths";
 import { installDevcmdCliGlobally, LOCAL_REGISTRY_URL, TestFunction, TestGroup } from "./integration-test-harness";
 
-export function createMultiplePackageJsonsExampleTestGroup(devcmdCliInfo: NpmPackResult): TestGroup {
-  const setup: TestFunction = async (containerName: string) => {
+export function createMultiplePackageJsonsExampleTestGroup(): TestGroup {
+  const setup: TestFunction = async (containerName: string, devcmdCliInfo: NpmPackResult) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
 
     await execPiped({

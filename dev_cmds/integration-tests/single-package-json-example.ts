@@ -5,8 +5,8 @@ import { NpmPackResult } from "../utils/npm-utils";
 import { singlePackageJsonExampleDir } from "../utils/paths";
 import { TestGroup, TestFunction, installDevcmdCliGlobally, LOCAL_REGISTRY_URL } from "./integration-test-harness";
 
-export function createSinglePackageJsonExampleTestGroup(devcmdCliInfo: NpmPackResult): TestGroup {
-  const setup: TestFunction = async (containerName: string) => {
+export function createSinglePackageJsonExampleTestGroup(): TestGroup {
+  const setup: TestFunction = async (containerName: string, devcmdCliInfo: NpmPackResult) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
 
     await execPiped({

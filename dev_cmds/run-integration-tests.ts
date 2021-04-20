@@ -28,8 +28,8 @@ async function main(): Promise<void> {
    * See integration-tests/README.md
    */
 
-  const testGroups = createIntegrationTestGroups(packedDevcmdCli, integrationTestGroupFactories);
-  const results = await runIntegrationTests(tempImageName, testGroups);
+  const testGroups = createIntegrationTestGroups(integrationTestGroupFactories);
+  const results = await runIntegrationTests(tempImageName, packedDevcmdCli, testGroups);
   printTestReport(results);
 }
 

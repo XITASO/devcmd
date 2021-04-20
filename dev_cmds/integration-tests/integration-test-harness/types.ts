@@ -12,7 +12,7 @@ export interface TestGroupResultInfo {
   readonly testResults: ReadonlyArray<TestResultInfo>;
 }
 
-export type TestFunction = (containerName: string) => Promise<TestResult>;
+export type TestFunction = (containerName: string, devcmdCliInfo: NpmPackResult) => Promise<TestResult>;
 
 export interface TestCase {
   readonly name: string;
@@ -24,4 +24,4 @@ export interface TestGroup {
   readonly testCases: ReadonlyArray<TestCase>;
 }
 
-export type TestGroupFactory = (devcmdCliInfo: NpmPackResult) => TestGroup;
+export type TestGroupFactory = () => TestGroup;

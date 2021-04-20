@@ -1,5 +1,5 @@
 import { execPiped } from "devcmd";
-import { red, green, bgGreen, bgRed, cyan, inverse } from "kleur/colors";
+import { red, green, cyan, inverse } from "kleur/colors";
 import { DOCKER_COMMAND } from "../../utils/commands";
 import { delay } from "../../utils/delay";
 import { NpmPackResult } from "../../utils/npm-utils";
@@ -8,14 +8,14 @@ import { VERDACCIO_STORAGE_VOLUME_NAME } from "./constants";
 import { TestFunction, TestGroup, TestGroupFactory, TestGroupResultInfo, TestResult, TestResultInfo } from "./types";
 
 export function createIntegrationTestGroups(
-  packedDevcmdCli: NpmPackResult,
   testGroupFactories: ReadonlyArray<TestGroupFactory>
 ): ReadonlyArray<TestGroup> {
-  return testGroupFactories.map((f) => f(packedDevcmdCli));
+  return testGroupFactories.map((f) => f());
 }
 
 export async function runIntegrationTests(
   tempImageName: string,
+  devcmdCliInfo: NpmPackResult,
   testGroups: ReadonlyArray<TestGroup>
 ): Promise<ReadonlyArray<TestGroupResultInfo>> {
   const results: TestGroupResultInfo[] = [];
@@ -24,7 +24,7 @@ export async function runIntegrationTests(
     console.log();
     console.log(sectionStart(testGroupLabel));
     console.log();
-    const result = await runTestGroupWithDevcmdContainer(tempImageName, testGroup);
+    const result = await runTestGroupWithDevcmdContainer(tempImageName, testGroup, devcmdCliInfo);
     console.log("\n" + formatTestGroupResult(result));
     console.log(sectionEnd());
     console.log();
@@ -78,7 +78,8 @@ function testResultToStatusLabel(testResult: TestResult): string {
 
 async function runTestGroupWithDevcmdContainer(
   tempImageName: string,
-  testGroup: TestGroup
+  testGroup: TestGroup,
+  devcmdCliInfo: NpmPackResult
 ): Promise<TestGroupResultInfo> {
   return await runWithDevcmdContainer(tempImageName, async (containerName) => {
     const testResults: TestResultInfo[] = [];
@@ -88,7 +89,7 @@ async function runTestGroupWithDevcmdContainer(
       if (skipTheRest) {
         result = "skipped";
       } else {
-        result = await runCatchingErrors(name, fn, containerName);
+        result = await runCatchingErrors(name, fn, containerName, devcmdCliInfo);
 
         if (result === "error") {
           skipTheRest = true;
@@ -138,10 +139,11 @@ async function runWithDevcmdContainer<R>(
 async function runCatchingErrors(
   testName: string,
   testFunction: TestFunction,
-  containerName: string
+  containerName: string,
+  devcmdCliInfo: NpmPackResult
 ): Promise<TestResult> {
   try {
-    return await testFunction(containerName);
+    return await testFunction(containerName, devcmdCliInfo);
   } catch (e) {
     console.error(`Error while running test ${testName}`);
     return "error";
