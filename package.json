@@ -5,7 +5,7 @@
     "packages/devcmd-cli"
   ],
   "devDependencies": {
-    "prettier": "^2.2.0"
+    "prettier": "^2.3.0"
   },
   "scripts": {
     "devcmd": "cd dev_cmds && yarn devcmd",
