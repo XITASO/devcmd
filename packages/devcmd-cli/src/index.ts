@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { execFileSync } from "child_process";
+import { ChildProcess, spawn, SpawnOptions } from "child_process";
 
 const devCmdsDirName = "dev_cmds";
 
@@ -54,9 +54,31 @@ async function isDir(path: string): Promise<boolean> {
 async function runInDevCmdsDir(dirPath: string) {
   const [, , ...args] = process.argv;
 
-  // TODO: use spawn or so instead
-  execFileSync("node", ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], {
-    cwd: dirPath,
-    stdio: "inherit",
+  try {
+    await startProcess('node', ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], dirPath);
+  } catch (err) {
+    process.exit(err);
+  }
+}
+
+async function startProcess(command: string, args: Array<string>, dirPath: string): Promise<number> {
+  const spawnOptions: SpawnOptions = {
+    stdio: 'inherit',
+    cwd: dirPath
+  };
+
+  const processPromise: Promise<number> = new Promise<number>((resolve, reject) => {
+    const processInstance: ChildProcess = spawn(command, args, spawnOptions);
+
+    processInstance.on("error", (err: Error): void => {
+      reject(err);
+    });
+
+    processInstance.on("close", (code: number): void => {
+      if (code === 0) resolve(code);
+      else reject(code);
+    });
   });
+
+  return processPromise;
 }
