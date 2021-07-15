@@ -48,19 +48,6 @@ async function isDir(path: string): Promise<boolean> {
   }
 }
 
-// Note: if launching a node subprocess for the resolution should turn out to be a problem,
-//   we could also use the npm module "resolve" to find the path ourselves (and e.g. require it in-process).
-//   See https://yarnpkg.com/package/resolve
-async function runInDevCmdsDir(dirPath: string) {
-  const [, , ...args] = process.argv;
-
-  try {
-    await startProcess('node', ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], dirPath);
-  } catch (err) {
-    process.exit(err);
-  }
-}
-
 async function startProcess(command: string, args: Array<string>, dirPath: string): Promise<number> {
   const spawnOptions: SpawnOptions = {
     stdio: 'inherit',
@@ -71,7 +58,7 @@ async function startProcess(command: string, args: Array<string>, dirPath: strin
     const processInstance: ChildProcess = spawn(command, args, spawnOptions);
 
     processInstance.on("error", (err: Error): void => {
-      reject(err);
+      throw new Error(err.message);
     });
 
     processInstance.on("close", (code: number): void => {
@@ -81,4 +68,21 @@ async function startProcess(command: string, args: Array<string>, dirPath: strin
   });
 
   return processPromise;
+}
+
+function isError(err: any): err is Error {
+  return err instanceof Error;
+}
+
+// Note: if launching a node subprocess for the resolution should turn out to be a problem,
+//   we could also use the npm module "resolve" to find the path ourselves (and e.g. require it in-process).
+//   See https://yarnpkg.com/package/resolve
+async function runInDevCmdsDir(dirPath: string): Promise<void> {
+  const [, , ...args] = process.argv;
+
+  try {
+    await startProcess('node', ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], dirPath);
+  } catch (err) {
+    isError(err) ? abort(err.message) : process.exit(1);
+  }
 }
