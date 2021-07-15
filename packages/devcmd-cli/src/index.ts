@@ -58,7 +58,7 @@ async function startProcess(command: string, args: Array<string>, dirPath: strin
     const processInstance: ChildProcess = spawn(command, args, spawnOptions);
 
     processInstance.on("error", (err: Error): void => {
-      throw new Error(err.message);
+      throw err;
     });
 
     processInstance.on("close", (code: number): void => {
