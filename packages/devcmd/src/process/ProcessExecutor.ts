@@ -13,13 +13,17 @@ export interface ProcessInfo {
   };
 }
 
+/**
+ * An interface that describes the behavior of a target,
+ * that can display log and error messages. 
+ */
 export interface ConsoleLike {
   log(message?: any, ...optionalParams: any[]): void;
   error(message?: any, ...optionalParams: any[]): void;
 }
 
 class SafeConsoleLike implements ConsoleLike {
-  constructor(private readonly consoleLike: ConsoleLike | undefined | null) {}
+  constructor(private readonly consoleLike: ConsoleLike | undefined | null) { }
 
   log(message?: any, ...optionalParams: any[]): void {
     if (this.consoleLike) this.consoleLike.log(message, ...optionalParams);
@@ -29,9 +33,17 @@ class SafeConsoleLike implements ConsoleLike {
   }
 }
 
+/** 
+ * A class abstracting the execution of tasks in separate child processes
+ */
 export class ProcessExecutor {
   private readonly consoleLike: ConsoleLike;
 
+  /**
+   * Constructor
+   * 
+   * @param {ConsoleLike} consoleLike A {@link ConsoleLike} for logging purposes
+   */
   constructor(consoleLike: ConsoleLike) {
     this.consoleLike = new SafeConsoleLike(consoleLike);
     this.execInTty = this.execInTty.bind(this);
@@ -43,6 +55,20 @@ export class ProcessExecutor {
   /**
    * Executes a process and throws an exception if the exit code is non-zero.
    * Outputs (stdout/stderr) of the process are sent to our stdout/stderr.
+   * 
+   * @param {ProcessInfo} processInfo Information about the process that should be started
+   * @returns {Promise<void>} A promise that resolves on success and rejects on error
+   * 
+   * @example 
+   * <caption>Running ping 127.0.0.1 on localhost</caption>
+   * ```
+   * try {
+   *   await execPiped({
+   *     command: 'ping',
+   *     args: ['127.0.0.1'],
+   *   });
+   * } catch {}
+   * ```
    */
   async execPiped(processInfo: ProcessInfo): Promise<void> {
     await this.execPipedInternal(processInfo, "");
@@ -51,6 +77,25 @@ export class ProcessExecutor {
   /**
    * Executes multiple processes in parallel and throws an exception if the exit code is non-zero.
    * Outputs (stdout/stderr) of the processes are sent to our stdout/stderr.
+   * 
+   * @param {{ [id: string]: ProcessInfo } | { [id: number]: ProcessInfo }} processMap A map linking process ids to {@link ProcessInfo} instances
+   * @returns {Promise<void>} A promise that resolves on success and rejects on error
+   * 
+   *  
+   * @example
+   * <caption>Printing node and npm version to the console</caption>
+   * ```
+   * await execPipedParallel({
+   *   nodeVersion: {
+   *     command: "node",
+   *     args: ["-v"],
+   *   },
+   *   npmVersion: {
+   *     command: "npm",
+   *     args: ["--version"],
+   *   },
+   * });
+   * ```
    */
   async execPipedParallel(processMap: { [id: string]: ProcessInfo } | { [id: number]: ProcessInfo }): Promise<void> {
     const processEntries = Object.entries(processMap);
@@ -183,16 +228,25 @@ function childProcessCompletion(childProcess: ChildProcess): Promise<number | nu
   });
 }
 
-type Result = { ok: true } | { err: unknown };
+type Ok = { ok: true };
+type Err = { err: unknown };
 
-function isErr(r: Result): r is { err: unknown } {
+type Result = Ok | Err;
+
+function isErr(r: Result): r is Err {
   return !isOk(r);
 }
 
-function isOk(r: Result): r is { ok: true } {
+function isOk(r: Result): r is Ok {
   return "ok" in r && r.ok;
 }
 
+/**
+ * Executes an awaitable function and wraps the result of the Promise
+ * 
+ * @param {() => Promise<void>} func The awaitable function
+ * @returns {Promise<Result>} Returns {@link Ok} on success and {@link Err} on error
+ */
 async function wrapResult(func: () => Promise<void>): Promise<Result> {
   try {
     await func();
