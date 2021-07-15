@@ -58,7 +58,8 @@ async function startProcess(command: string, args: Array<string>, dirPath: strin
     const processInstance: ChildProcess = spawn(command, args, spawnOptions);
 
     processInstance.on("error", (err: Error): void => {
-      throw err;
+      // The 'error' event gets emitted when the process couldn't be spawned, killed or communicated with
+      reject(err);
     });
 
     processInstance.on("close", (code: number): void => {
@@ -83,6 +84,6 @@ async function runInDevCmdsDir(dirPath: string): Promise<void> {
   try {
     await startProcess('node', ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], dirPath);
   } catch (err) {
-    isError(err) ? abort(err.message) : process.exit(1);
+    isError(err) ? abort(err.stack ?? err.message) : process.exit(1);
   }
 }
