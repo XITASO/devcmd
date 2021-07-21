@@ -15,7 +15,7 @@ export interface ProcessInfo {
 
 /**
  * An interface that describes the behavior of a target,
- * that can display log and error messages. 
+ * that can display log and error messages.
  */
 export interface ConsoleLike {
   log(message?: any, ...optionalParams: any[]): void;
@@ -23,7 +23,7 @@ export interface ConsoleLike {
 }
 
 class SafeConsoleLike implements ConsoleLike {
-  constructor(private readonly consoleLike: ConsoleLike | undefined | null) { }
+  constructor(private readonly consoleLike: ConsoleLike | undefined | null) {}
 
   log(message?: any, ...optionalParams: any[]): void {
     if (this.consoleLike) this.consoleLike.log(message, ...optionalParams);
@@ -33,17 +33,13 @@ class SafeConsoleLike implements ConsoleLike {
   }
 }
 
-/** 
- * A class abstracting the execution of tasks in separate child processes
+/**
+ * Facilities to execute single or multiple external processes
+ * with flexible forwarding of child process output.
  */
 export class ProcessExecutor {
   private readonly consoleLike: ConsoleLike;
 
-  /**
-   * Constructor
-   * 
-   * @param {ConsoleLike} consoleLike A {@link ConsoleLike} for logging purposes
-   */
   constructor(consoleLike: ConsoleLike) {
     this.consoleLike = new SafeConsoleLike(consoleLike);
     this.execInTty = this.execInTty.bind(this);
@@ -55,11 +51,11 @@ export class ProcessExecutor {
   /**
    * Executes a process and throws an exception if the exit code is non-zero.
    * Outputs (stdout/stderr) of the process are sent to our stdout/stderr.
-   * 
-   * @param {ProcessInfo} processInfo Information about the process that should be started
-   * @returns {Promise<void>} A promise that resolves on success and rejects on error
-   * 
-   * @example 
+   *
+   * @param processInfo Information about the process to execute
+   * @returns A promise that resolves on success and rejects on error
+   *
+   * @example
    * <caption>Running ping 127.0.0.1 on localhost</caption>
    * ```
    * try {
@@ -76,12 +72,13 @@ export class ProcessExecutor {
 
   /**
    * Executes multiple processes in parallel and throws an exception if the exit code is non-zero.
-   * Outputs (stdout/stderr) of the processes are sent to our stdout/stderr.
-   * 
-   * @param {{ [id: string]: ProcessInfo } | { [id: number]: ProcessInfo }} processMap A map linking process ids to {@link ProcessInfo} instances
-   * @returns {Promise<void>} A promise that resolves on success and rejects on error
-   * 
-   *  
+   * Outputs (stdout/stderr) of the processes are sent to our stdout/stderr. Can also take an array
+   * of {@link ProcessInfo}, since arrays are compatible with the object type indexed by integers.
+   *
+   * @param processMap A map linking process ids to {@link ProcessInfo} instances
+   * @returns A promise that resolves on success and rejects on error
+   *
+   *
    * @example
    * <caption>Printing node and npm version to the console</caption>
    * ```
@@ -242,10 +239,10 @@ function isOk(r: Result): r is Ok {
 }
 
 /**
- * Executes an awaitable function and wraps the result of the Promise
- * 
- * @param {() => Promise<void>} func The awaitable function
- * @returns {Promise<Result>} Returns {@link Ok} on success and {@link Err} on error
+ * Executes a promise-returning function and wraps the result for later use with {@link unwrapResults}.
+ *
+ * @param func The awaitable function
+ * @returns Returns {@link Ok} on success and {@link Err} on error
  */
 async function wrapResult(func: () => Promise<void>): Promise<Result> {
   try {
@@ -256,6 +253,12 @@ async function wrapResult(func: () => Promise<void>): Promise<Result> {
   }
 }
 
+/**
+ * Takes an array of results and iterates through the array.
+ * Throws the first error that is found within the results.
+ *
+ * @param results An array of {@link Result}
+ */
 function unwrapResults(results: Result[]): void {
   const errs = results.filter(isErr).map((r) => r.err);
 
