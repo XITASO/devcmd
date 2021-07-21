@@ -4,10 +4,8 @@ import { devcmdPackageDir, devPath } from "./utils/paths";
 import fs from "fs-extra";
 
 async function main() {
-
-  if(!await fs.pathExists(devPath)) {
-    process.stderr.write('No development folder found!\n')
-    process.exit(1)
+  if (!(await fs.pathExists(devPath))) {
+    throw new Error("No development folder found!\n");
   }
 
   try {
@@ -18,7 +16,9 @@ async function main() {
         cwd: devPath,
       },
     });
-  } catch {}
+  } catch {
+    process.stdout.write("Could not unlink devcmd from the development folder!\n");
+  }
 
   try {
     await execPiped({
@@ -28,13 +28,15 @@ async function main() {
         cwd: devcmdPackageDir,
       },
     });
-  } catch {}
+  } catch {
+    process.stdout.write("Could not unlink the devcmd package!\n");
+  }
 
   try {
-    await fs.remove(
-      devPath
-    );
-  } catch {}
+    await fs.remove(devPath);
+  } catch {
+    process.stdout.write("Could not remove the devlopment folder!\n");
+  }
 }
 
 runAsyncMain(main);

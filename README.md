@@ -100,10 +100,12 @@ $ devcmd build
 
 ## Setting up a local development setup
 
+It is recommended to use the [Remote-Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension for Visual Studio Code for this. Once the extension is installed,
+click `Reopen in Container` within the popup in the bottom right or open the command palette and run the command `Remote-Containers: Reopen in Container`.
+
 Since both the `devcmd` and the `devcmd-cli` packages use local installations within __node_modules__ folders,
 developing and especially testing devcmd locally can be challenging. In order to setup a local development
-environment, you can use the script `setup-dev`, which intializes a `dev`-folder, that contains the required `devcmd`-package
-as a yarn symlink. It is recommended to use the Remote-Containers extension for Visual Studio Code for this.
+environment, you can use the devcmd task `setup-dev`, which intializes a `dev`-folder, that contains the required `devcmd`-package as a yarn symlink. 
 
 ```sh
 $ yarn devcmd setup-dev
@@ -135,7 +137,7 @@ $ cd dev
 /dev $ npx devcmd [PARAMS]
 ```
 
-To properly cleanup the folder and the symlinks, use the devcmd `clean-dev`.
+To properly cleanup the folder and the symlinks, use the devcmd task `clean-dev`.
 
 ```sh
 $ yarn devcmd clean-dev

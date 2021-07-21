@@ -49,13 +49,11 @@ async function isDir(path: string): Promise<boolean> {
 }
 
 async function startProcess(command: string, args: Array<string>, dirPath: string): Promise<number> {
-  const spawnOptions: SpawnOptions = {
-    stdio: 'inherit',
-    cwd: dirPath
-  };
-
-  const processPromise: Promise<number> = new Promise<number>((resolve, reject) => {
-    const processInstance: ChildProcess = spawn(command, args, spawnOptions);
+  return new Promise<number>((resolve, reject) => {
+    const processInstance: ChildProcess = spawn(command, args, {
+      stdio: "inherit",
+      cwd: dirPath,
+    });
 
     processInstance.on("error", (err: Error): void => {
       // The 'error' event gets emitted when the process couldn't be spawned, killed or communicated with
@@ -67,12 +65,6 @@ async function startProcess(command: string, args: Array<string>, dirPath: strin
       else reject(code);
     });
   });
-
-  return processPromise;
-}
-
-function isError(err: any): err is Error {
-  return err instanceof Error;
 }
 
 // Note: if launching a node subprocess for the resolution should turn out to be a problem,
@@ -82,8 +74,8 @@ async function runInDevCmdsDir(dirPath: string): Promise<void> {
   const [, , ...args] = process.argv;
 
   try {
-    await startProcess('node', ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], dirPath);
+    await startProcess("node", ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], dirPath);
   } catch (err) {
-    isError(err) ? abort(err.stack ?? err.message) : process.exit(1);
+    err instanceof Error ? abort(err.stack ?? err.message) : process.exit(1);
   }
 }
