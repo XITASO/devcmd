@@ -241,7 +241,7 @@ function isOk(r: Result): r is Ok {
 /**
  * Executes a promise-returning function and wraps the result for later use with {@link unwrapResults}.
  *
- * @param func The awaitable function
+ * @param func The promise-returning function
  * @returns Returns {@link Ok} on success and {@link Err} on error
  */
 async function wrapResult(func: () => Promise<void>): Promise<Result> {
