@@ -1,11 +1,11 @@
 import { execPiped, runAsyncMain } from "devcmd";
 import { YARN_COMMAND } from "./utils/commands";
-import { devcmdPackageDir, devPath } from "./utils/paths";
+import { devcmdPackageDir, devDir } from "./utils/paths";
 import fs from "fs-extra";
 
 async function main() {
-  if (!(await fs.pathExists(devPath))) {
-    throw new Error("No development folder found!\n");
+  if (!(await fs.pathExists(devDir))) {
+    throw new Error("No development folder found!");
   }
 
   try {
@@ -13,11 +13,11 @@ async function main() {
       command: YARN_COMMAND,
       args: ["unlink", "devcmd"],
       options: {
-        cwd: devPath,
+        cwd: devDir,
       },
     });
   } catch {
-    process.stdout.write("Could not unlink devcmd from the development folder!\n");
+    console.warn("Could not unlink devcmd from the development folder!");
   }
 
   try {
@@ -29,13 +29,13 @@ async function main() {
       },
     });
   } catch {
-    process.stdout.write("Could not unlink the devcmd package!\n");
+    console.warn("Could not unlink the devcmd package!");
   }
 
   try {
-    await fs.remove(devPath);
+    await fs.remove(devDir);
   } catch {
-    process.stdout.write("Could not remove the devlopment folder!\n");
+    console.warn("Could not remove the devlopment folder!");
   }
 }
 
