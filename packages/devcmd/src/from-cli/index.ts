@@ -3,6 +3,7 @@ import { gray, bold, red, reset } from "kleur/colors";
 import { spawnSync } from "npm-run";
 import path from "path";
 import { formatCommandArgs, formatCommandName } from "../utils/format_utils";
+import { checkPackageAvailable } from "../utils/npm_utils";
 import { withCmdOnWin } from "../utils/platform_utils";
 import { getDevcmdVersion } from "../utils/version_utils";
 
@@ -14,6 +15,7 @@ export function run(...args: string[]) {
   assertArgsValid(args);
 
   const [scriptName, ...scriptArgs] = args;
+
   printScriptHeader(scriptName, scriptArgs);
   findAndRunScript(process.cwd(), scriptName, scriptArgs).catch((reason) => {
     const message = reason instanceof Error ? reason.message : `${reason}`;
@@ -81,9 +83,18 @@ const scriptRunners = [
 async function findAndRunScript(devCmdsDir: string, commandName: string, commandArgs: string[]): Promise<void> {
   for (const { extension, launcher } of scriptRunners) {
     const scriptFilepath = path.join(devCmdsDir, `${commandName}.${extension}`);
+
     if (await isFile(scriptFilepath)) {
+      if (extension === "ts" && !(await checkPackageAvailable(launcher, devCmdsDir))) {
+        throw new Error(`No script runner for TypeScript devcmds found. Did you forget to install ${bold(launcher)}?`);
+      }
+
       // TODO: use spawn or so instead
-      const { status } = spawnSync(withCmdOnWin(launcher), [scriptFilepath, ...commandArgs], { stdio: "inherit" });
+      const { status } = spawnSync(withCmdOnWin(launcher), [scriptFilepath, ...commandArgs], {
+        stdio: "inherit",
+        cwd: devCmdsDir,
+      });
+
       if (status !== null && status != 0) throw new Error(`Process failed with exit code ${status}`);
 
       return;

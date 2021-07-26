@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { ChildProcess, spawn, SpawnOptions } from "child_process";
+import { ChildProcess, spawn } from "child_process";
 
 const devCmdsDirName = "dev_cmds";
 
