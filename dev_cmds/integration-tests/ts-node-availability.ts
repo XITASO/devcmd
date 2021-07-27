@@ -38,30 +38,6 @@ export function createTsNodeAvailabilityTestGroup(): TestGroup {
     return "success";
   };
 
-  const runExampleCmd: TestFunction = async (containerName: string) => {
-    const exampleCmdCommandLine = `npx devcmd example_cmd`;
-    const { stdout, stderr } = await execToString({
-      command: DOCKER_COMMAND,
-      args: [
-        "exec",
-        containerName,
-        "sh",
-        "-c",
-        ["cd /tmp/devcmd_test/single-package-json", exampleCmdCommandLine].join(" && "),
-      ],
-    });
-
-    if (!stdout.includes("Example command for single-package-json example")) {
-      console.log(red("example_cmd didn't print expected output."));
-      console.log(red("Stderr was:"));
-      console.log(red(stderr));
-
-      return "fail";
-    } else {
-      return "success";
-    }
-  };
-
   const runFailsWithError: TestFunction = async (containerName: string) => {
     const exampleCmdCommandLine = `npx devcmd example_cmd`;
 
@@ -109,7 +85,6 @@ export function createTsNodeAvailabilityTestGroup(): TestGroup {
 
   const testCases = [
     { name: "Setup", fn: setup },
-    { name: "Run example_cmd", fn: runExampleCmd },
     { name: "Run example_cmd without ts-node", fn: runFailsWithError },
   ];
   return { name: "ts-node-availability", testCases };
