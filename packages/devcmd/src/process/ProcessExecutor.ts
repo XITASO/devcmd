@@ -13,6 +13,10 @@ export interface ProcessInfo {
   };
 }
 
+/**
+ * An interface that describes the behavior of a target,
+ * that can display log and error messages.
+ */
 export interface ConsoleLike {
   log(message?: any, ...optionalParams: any[]): void;
   error(message?: any, ...optionalParams: any[]): void;
@@ -29,6 +33,10 @@ class SafeConsoleLike implements ConsoleLike {
   }
 }
 
+/**
+ * Facilities to execute single or multiple external processes
+ * with flexible forwarding of child process output.
+ */
 export class ProcessExecutor {
   private readonly consoleLike: ConsoleLike;
 
@@ -43,6 +51,20 @@ export class ProcessExecutor {
   /**
    * Executes a process and throws an exception if the exit code is non-zero.
    * Outputs (stdout/stderr) of the process are sent to our stdout/stderr.
+   *
+   * @param processInfo Information about the process to execute
+   * @returns A promise that resolves on success and rejects on error
+   *
+   * @example
+   * <caption>Running ping 127.0.0.1 on localhost</caption>
+   * ```
+   * try {
+   *   await execPiped({
+   *     command: 'ping',
+   *     args: ['127.0.0.1'],
+   *   });
+   * } catch {}
+   * ```
    */
   async execPiped(processInfo: ProcessInfo): Promise<void> {
     await this.execPipedInternal(processInfo, "");
@@ -50,7 +72,27 @@ export class ProcessExecutor {
 
   /**
    * Executes multiple processes in parallel and throws an exception if the exit code is non-zero.
-   * Outputs (stdout/stderr) of the processes are sent to our stdout/stderr.
+   * Outputs (stdout/stderr) of the processes are sent to our stdout/stderr. Can also take an array
+   * of {@link ProcessInfo}, since arrays are compatible with the object type indexed by integers.
+   *
+   * @param processMap A map linking process ids to {@link ProcessInfo} instances
+   * @returns A promise that resolves on success and rejects on error
+   *
+   *
+   * @example
+   * <caption>Printing node and npm version to the console</caption>
+   * ```
+   * await execPipedParallel({
+   *   nodeVersion: {
+   *     command: "node",
+   *     args: ["-v"],
+   *   },
+   *   npmVersion: {
+   *     command: "npm",
+   *     args: ["--version"],
+   *   },
+   * });
+   * ```
    */
   async execPipedParallel(processMap: { [id: string]: ProcessInfo } | { [id: number]: ProcessInfo }): Promise<void> {
     const processEntries = Object.entries(processMap);
@@ -183,16 +225,25 @@ function childProcessCompletion(childProcess: ChildProcess): Promise<number | nu
   });
 }
 
-type Result = { ok: true } | { err: unknown };
+type Ok = { ok: true };
+type Err = { err: unknown };
 
-function isErr(r: Result): r is { err: unknown } {
+type Result = Ok | Err;
+
+function isErr(r: Result): r is Err {
   return !isOk(r);
 }
 
-function isOk(r: Result): r is { ok: true } {
+function isOk(r: Result): r is Ok {
   return "ok" in r && r.ok;
 }
 
+/**
+ * Executes a promise-returning function and wraps the result for later use with {@link unwrapResults}.
+ *
+ * @param func The promise-returning function
+ * @returns Returns {@link Ok} on success and {@link Err} on error
+ */
 async function wrapResult(func: () => Promise<void>): Promise<Result> {
   try {
     await func();
@@ -202,6 +253,12 @@ async function wrapResult(func: () => Promise<void>): Promise<Result> {
   }
 }
 
+/**
+ * Takes an array of results and iterates through the array.
+ * Throws the first error that is found within the results.
+ *
+ * @param results An array of {@link Result}
+ */
 function unwrapResults(results: Result[]): void {
   const errs = results.filter(isErr).map((r) => r.err);
 

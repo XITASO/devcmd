@@ -82,6 +82,14 @@ describe("ProcessExecutor", () => {
       });
     });
 
+    test("succeeding processes as array works", async () => {
+      const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
+      await execPipedParallel([
+        { command: "node", args: ["--version"] },
+        { command: withCmdOnWin("npm"), args: ["--version"] },
+      ]);
+    });
+
     test("single failing process throws", async () => {
       expect.assertions(1);
       const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
