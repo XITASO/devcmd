@@ -9,6 +9,7 @@
   },
   "scripts": {
     "devcmd": "cd dev_cmds && yarn devcmd",
+    "dev": "cd dev && yarn devcmd",
     "postinstall": "cd dev_cmds && yarn"
   }
 }

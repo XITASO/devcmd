@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 import path from "path";
-import { execFileSync } from "child_process";
+import { ChildProcess, spawn, SpawnOptions } from "child_process";
 
 const devCmdsDirName = "dev_cmds";
 
@@ -48,15 +48,34 @@ async function isDir(path: string): Promise<boolean> {
   }
 }
 
+async function startProcess(command: string, args: Array<string>, dirPath: string): Promise<number> {
+  return new Promise<number>((resolve, reject) => {
+    const processInstance: ChildProcess = spawn(command, args, {
+      stdio: "inherit",
+      cwd: dirPath,
+    });
+
+    processInstance.on("error", (err: Error): void => {
+      // The 'error' event gets emitted when the process couldn't be spawned, killed or communicated with
+      reject(err);
+    });
+
+    processInstance.on("close", (code: number): void => {
+      if (code === 0) resolve(code);
+      else reject(code);
+    });
+  });
+}
+
 // Note: if launching a node subprocess for the resolution should turn out to be a problem,
 //   we could also use the npm module "resolve" to find the path ourselves (and e.g. require it in-process).
 //   See https://yarnpkg.com/package/resolve
-async function runInDevCmdsDir(dirPath: string) {
+async function runInDevCmdsDir(dirPath: string): Promise<void> {
   const [, , ...args] = process.argv;
 
-  // TODO: use spawn or so instead
-  execFileSync("node", ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], {
-    cwd: dirPath,
-    stdio: "inherit",
-  });
+  try {
+    await startProcess("node", ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], dirPath);
+  } catch (err) {
+    err instanceof Error ? abort(err.stack ?? err.message) : process.exit(1);
+  }
 }
