@@ -1,8 +1,10 @@
 import { promises as fs } from "fs";
+import { green } from "kleur";
 import { gray, bold, red, reset } from "kleur/colors";
 import { spawnSync } from "npm-run";
 import path from "path";
 import { formatCommandArgs, formatCommandName } from "../utils/format_utils";
+import { getReservedCommand, reservedCommands } from "../utils/get_reserved_command";
 import { checkPackageAvailable } from "../utils/npm_utils";
 import { withCmdOnWin } from "../utils/platform_utils";
 import { getDevcmdVersion } from "../utils/version_utils";
@@ -23,6 +25,20 @@ export function run(...args: string[]) {
   });
 }
 
+export async function runReserved(cmd: string) {
+  printDevcmdHeader();
+  process.stdout.write("\n");
+  assertInDevCmdsDir();
+  assertReservedCmdExists(cmd);
+
+  try {
+    const cmdFn = getReservedCommand(cmd);
+    await cmdFn();
+  } catch (err) {
+    abort(err);
+  }
+}
+
 function printDevcmdHeader() {
   process.stdout.write(gray(bold(`devcmd v${getDevcmdVersion()}`)));
 }
@@ -36,9 +52,15 @@ function assertInDevCmdsDir() {
   }
 }
 
+function assertReservedCmdExists(cmd: string) {
+  if (!reservedCommands.includes(cmd)) {
+    abort(`Command ${cmd} not found.`);
+  }
+}
+
 function assertArgsValid(args: string[]): args is string[] {
   if (!args || args.length === 0) {
-    abort("\nNo script specified.");
+    abort(`\nNo script specified. Use ${green("devcmd --list")} to show available tasks.`);
   }
   return true;
 }
@@ -104,6 +126,8 @@ async function findAndRunScript(devCmdsDir: string, commandName: string, command
   const scriptFileCandidates = scriptRunners.map(({ extension }) => `${commandName}.${extension}`);
   const message = `No script file found for command '${commandName}'.
     ${devCmdsDirName} dir path: ${devCmdsDir}
-    Script files tried: ${scriptFileCandidates.join(", ")}`;
+    Script files tried: ${scriptFileCandidates.join(", ")}
+    
+    Use ${green("devcmd --list")} to show available tasks.`;
   throw new Error(message);
 }
