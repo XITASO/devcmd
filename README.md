@@ -144,3 +144,58 @@ $ yarn devcmd clean-dev
 # - or -
 $ npx devcmd clean-dev
 ```
+
+## Release Process
+
+- First of all you should ensure that everything is working. Check this with running the integration tests:
+```sh
+$ yarn devcmd run-integration-tests
+# - or -
+$ npx devcmd run-integration-tests
+# - or with global launcher -
+$ devcmd run-integration-tests
+```
+- Depending on whether a change has been made to the devcmd-cli or devcmd, the steps to be carried out must be distinguished in the following.
+
+### Release of changes in devcmd-cli
+
+- Bump the version of the devcmd-cli. You should use the task "bump-version" and select devcmd-cli in the prompt:
+```sh
+$ yarn devcmd bump-version
+# - or -
+$ npx devcmd bump-version
+# - or with global launcher -
+$ devcmd bump-version
+```
+- But this command also updates devcmd, so you need to update devcmd as well.
+- Build the devcmd-cli package. You can use the task "build-all":
+```sh
+$ yarn devcmd build-all
+# - or -
+$ npx devcmd build-all
+# - or with global launcher -
+$ devcmd bump-version
+```
+- Publish to npm.
+
+
+### Release of changes in devcmd
+
+- Bump the version of the devcmd-cli. You should use the task "bump-version" and select devcmd in the prompt:
+```sh
+$ yarn devcmd bump-version
+# - or -
+$ npx devcmd bump-version
+# - or with global launcher -
+$ devcmd bump-version
+```
+- Build the devcmd package. You can use the task "build-all":
+```sh
+$ yarn devcmd build-all
+# - or -
+$ npx devcmd build-all
+# - or with global launcher -
+$ devcmd bump-version
+```
+- Publish to npm.
+- Update the dev_cmds/package.json in this repository to use the new release.
