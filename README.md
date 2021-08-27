@@ -7,7 +7,8 @@
 - **Launcher**: With the included `devcmd` launcher, you can easily start your commands with `yarn devcmd` or `npx devcmd`. Additionally, you can globally install `devcmd-cli` to use the launcher directly and from anywhere.
 - **TypeScript & JavaScript**: Benefit from the power of the npm ecosystem. Use the safety and abstraction of TypeScript where it helps you. Drop to plain JavaScript when you want to.
 
-## Getting Started
+## Usage
+### Getting Started
 
 - Install the `devcmd` package in your workspace:
 
@@ -80,7 +81,7 @@
 
 - If you don't want to type `yarn`/`npx` every time, you can globally install `devcmd-cli` (see below).
 
-## Using the Global Launcher: `devcmd-cli`
+### Using the Global Launcher: `devcmd-cli`
 
 `devcmd-cli` is a command line utility to launch your dev commands that is intended to be installed globally:
 
@@ -97,8 +98,9 @@ Going back to the example "build" command from above, you can now run it from th
 ```sh
 $ devcmd build
 ```
+## Contribute
 
-## Setting up a local development setup
+### Setting up a local development setup
 
 It is recommended to use the [Remote-Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension for Visual Studio Code for this. Once the extension is installed,
 click `Reopen in Container` within the popup in the bottom right or open the command palette and run the command `Remote-Containers: Reopen in Container`.
@@ -145,7 +147,7 @@ $ yarn devcmd clean-dev
 $ npx devcmd clean-dev
 ```
 
-## Release Process
+### Release Process
 
 - First of all you should ensure that everything is working. Check this with running the integration tests:
 ```sh
@@ -157,9 +159,9 @@ $ devcmd run-integration-tests
 ```
 - Depending on whether a change has been made to the devcmd-cli or devcmd, the steps to be carried out must be distinguished in the following.
 
-### Release of changes in devcmd-cli
+#### Release of changes in devcmd-cli
 
-- Bump the version of the devcmd-cli. You should use the task "bump-version" and select devcmd-cli in the prompt:
+- Bump the version of the devcmd-cli. You should use the task `bump-version` and select devcmd-cli in the prompt:
 ```sh
 $ yarn devcmd bump-version
 # - or -
@@ -167,21 +169,21 @@ $ npx devcmd bump-version
 # - or with global launcher -
 $ devcmd bump-version
 ```
-- But this command also updates devcmd, so you need to update devcmd as well.
-- Build the devcmd-cli package. You can use the task "build-all":
+- But this command also updates devcmd, so you need to update devcmd as well (see below).
+- Build the devcmd-cli package. You can use the task `build-all`:
 ```sh
 $ yarn devcmd build-all
 # - or -
 $ npx devcmd build-all
 # - or with global launcher -
-$ devcmd bump-version
+$ devcmd build-all
 ```
 - Publish to npm.
 
 
-### Release of changes in devcmd
+#### Release of changes in devcmd
 
-- Bump the version of the devcmd-cli. You should use the task "bump-version" and select devcmd in the prompt:
+- Bump the version of the devcmd-cli. You should use the task `bump-version` and select devcmd in the prompt:
 ```sh
 $ yarn devcmd bump-version
 # - or -
@@ -189,13 +191,13 @@ $ npx devcmd bump-version
 # - or with global launcher -
 $ devcmd bump-version
 ```
-- Build the devcmd package. You can use the task "build-all":
+- Build the devcmd package. You can use the task `build-all`:
 ```sh
 $ yarn devcmd build-all
 # - or -
 $ npx devcmd build-all
 # - or with global launcher -
-$ devcmd bump-version
+$ devcmd build-all
 ```
 - Publish to npm.
-- Update the dev_cmds/package.json in this repository to use the new release.
+- Update the version of devcmd in the dev_cmds/package.json in this repository to use the new release.
