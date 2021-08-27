@@ -8,6 +8,7 @@
 - **TypeScript & JavaScript**: Benefit from the power of the npm ecosystem. Use the safety and abstraction of TypeScript where it helps you. Drop to plain JavaScript when you want to.
 
 ## Usage
+
 ### Getting Started
 
 - Install the `devcmd` package in your workspace:
@@ -98,6 +99,7 @@ Going back to the example "build" command from above, you can now run it from th
 ```sh
 $ devcmd build
 ```
+
 ## Contribute
 
 ### Setting up a local development setup
@@ -150,6 +152,7 @@ $ npx devcmd clean-dev
 ### Release Process
 
 - First of all you should ensure that everything is working. Check this with running the integration tests:
+
 ```sh
 $ yarn devcmd run-integration-tests
 # - or -
@@ -157,11 +160,13 @@ $ npx devcmd run-integration-tests
 # - or with global launcher -
 $ devcmd run-integration-tests
 ```
+
 - Depending on whether a change has been made to the devcmd-cli or devcmd, the steps to be carried out must be distinguished in the following.
 
 #### Release of changes in devcmd-cli
 
 - Bump the version of the devcmd-cli. You should use the task `bump-version` and select devcmd-cli in the prompt:
+
 ```sh
 $ yarn devcmd bump-version
 # - or -
@@ -169,8 +174,10 @@ $ npx devcmd bump-version
 # - or with global launcher -
 $ devcmd bump-version
 ```
+
 - But this command also updates devcmd, so you need to update devcmd as well (see below).
 - Build the devcmd-cli package. You can use the task `build-all`:
+
 ```sh
 $ yarn devcmd build-all
 # - or -
@@ -178,12 +185,13 @@ $ npx devcmd build-all
 # - or with global launcher -
 $ devcmd build-all
 ```
-- Publish to npm.
 
+- Publish to npm.
 
 #### Release of changes in devcmd
 
 - Bump the version of the devcmd-cli. You should use the task `bump-version` and select devcmd in the prompt:
+
 ```sh
 $ yarn devcmd bump-version
 # - or -
@@ -191,7 +199,9 @@ $ npx devcmd bump-version
 # - or with global launcher -
 $ devcmd bump-version
 ```
+
 - Build the devcmd package. You can use the task `build-all`:
+
 ```sh
 $ yarn devcmd build-all
 # - or -
@@ -199,5 +209,6 @@ $ npx devcmd build-all
 # - or with global launcher -
 $ devcmd build-all
 ```
+
 - Publish to npm.
 - Update the version of devcmd in the dev_cmds/package.json in this repository to use the new release.
