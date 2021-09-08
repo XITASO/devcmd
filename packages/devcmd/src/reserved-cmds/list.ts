@@ -10,7 +10,7 @@ export async function listCmd(): Promise<void> {
     const files = await fs.readdir(cwd);
 
     if (files.length > 0) {
-      console.log(bold(green("Available tasks:")));
+      console.log(bold(green(`Available tasks in ${cwd}:`)));
       files.sort().forEach((f) => {
         const lastDotIndex = f.lastIndexOf(".");
 
@@ -22,7 +22,7 @@ export async function listCmd(): Promise<void> {
         }
       });
     } else {
-      console.log(bold(red("No tasks available.")));
+      console.log(bold(red(`No tasks found in ${cwd}.`)));
     }
   } catch {
     console.log("Failed to list available tasks!");
