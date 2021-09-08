@@ -53,7 +53,14 @@ export function createReservedCommandsTestGroup(): TestGroup {
     const expectedCmds = ["example_cmd", "fails_with_error", "parameter_example_cmd"];
 
     expectedCmds.forEach((cmd) => {
-      if (!stdout.includes(cmd)) return "fail";
+      if (!stdout.includes(cmd)) {
+        console.log(red("--list didn't print expected output."));
+        console.log(red("Actual stdout was:"));
+        console.log(red(stdout));
+        console.log(red("But stdout was expected to contain the cmd:"));
+        console.log(red(cmd));
+        return "fail";
+      }
     });
 
     return "success";
@@ -92,5 +99,5 @@ export function createReservedCommandsTestGroup(): TestGroup {
     { name: "List available commands", fn: listLogsAvailableCommands },
     { name: "Devcmd Help", fn: helpLogsHelpInformation },
   ];
-  return { name: "ts-node-availability", testCases };
+  return { name: "reserved-commands", testCases };
 }

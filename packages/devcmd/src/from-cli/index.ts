@@ -4,20 +4,28 @@ import { gray, bold, red, reset } from "kleur/colors";
 import { spawnSync } from "npm-run";
 import path from "path";
 import { formatCommandArgs, formatCommandName } from "../utils/format_utils";
-import { getReservedCommand, reservedCommands } from "../utils/get_reserved_command";
+import { getReservedCommand, reservedCommands } from "../reserved-cmds/get_reserved_command";
 import { checkPackageAvailable } from "../utils/npm_utils";
 import { withCmdOnWin } from "../utils/platform_utils";
 import { getDevcmdVersion } from "../utils/version_utils";
 
 const devCmdsDirName = "dev_cmds";
 
-export function run(...args: string[]) {
+export async function run(...args: string[]) {
   printDevcmdHeader();
   assertInDevCmdsDir();
   assertArgsValid(args);
 
   const [scriptName, ...scriptArgs] = args;
 
+  if (scriptName.length > 2 && scriptName.indexOf("--") === 0) {
+    await runReserved(scriptName.slice(2), ...scriptArgs);
+  } else {
+    await runDevcmd(scriptName, ...scriptArgs);
+  }
+}
+
+async function runDevcmd(scriptName: string, ...scriptArgs: string[]) {
   printScriptHeader(scriptName, scriptArgs);
   findAndRunScript(process.cwd(), scriptName, scriptArgs).catch((reason) => {
     const message = reason instanceof Error ? reason.message : `${reason}`;
@@ -25,10 +33,7 @@ export function run(...args: string[]) {
   });
 }
 
-export async function runReserved(cmd: string) {
-  printDevcmdHeader();
-  process.stdout.write("\n");
-  assertInDevCmdsDir();
+async function runReserved(cmd: string, ...args: string[]) {
   assertReservedCmdExists(cmd);
 
   try {

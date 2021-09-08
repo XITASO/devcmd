@@ -73,21 +73,12 @@ async function startProcess(command: string, args: Array<string>, dirPath: strin
 async function runInDevCmdsDir(dirPath: string): Promise<void> {
   const [, , ...args] = process.argv;
 
-  if (args.length > 0) {
-    const cmdName = args[0].trim();
-
-    if (cmdName.length > 2 && cmdName.indexOf("--") === 0) {
-      try {
-        await startProcess("node", ["-e", `require('devcmd/from-cli').runReserved('${cmdName.slice(2)}')`], dirPath);
-      } catch (err) {
-        err instanceof Error ? abort(err.stack ?? err.message) : process.exit(1);
-      }
-      process.exit(0);
-    }
-  }
-
   try {
-    await startProcess("node", ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], dirPath);
+    await startProcess(
+      "node",
+      ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, "--", ...args],
+      dirPath
+    );
   } catch (err) {
     err instanceof Error ? abort(err.stack ?? err.message) : process.exit(1);
   }
