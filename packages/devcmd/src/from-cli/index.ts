@@ -18,6 +18,8 @@ export async function run(...args: string[]) {
 
   const [scriptName, ...scriptArgs] = args;
 
+  printScriptHeader(scriptName, scriptArgs);
+
   if (scriptName.length > 2 && scriptName.indexOf("--") === 0) {
     await runReserved(scriptName.slice(2), ...scriptArgs);
   } else {
@@ -26,7 +28,6 @@ export async function run(...args: string[]) {
 }
 
 async function runDevcmd(scriptName: string, ...scriptArgs: string[]) {
-  printScriptHeader(scriptName, scriptArgs);
   findAndRunScript(process.cwd(), scriptName, scriptArgs).catch((reason) => {
     const message = reason instanceof Error ? reason.message : `${reason}`;
     abort(message);
