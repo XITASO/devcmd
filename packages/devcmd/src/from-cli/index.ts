@@ -28,10 +28,12 @@ export async function run(...args: string[]) {
 }
 
 async function runDevcmd(scriptName: string, ...scriptArgs: string[]) {
-  findAndRunScript(process.cwd(), scriptName, scriptArgs).catch((reason) => {
+  try {
+    await findAndRunScript(process.cwd(), scriptName, scriptArgs);
+  } catch (reason) {
     const message = reason instanceof Error ? reason.message : `${reason}`;
     abort(message);
-  });
+  }
 }
 
 async function runReserved(cmd: string, ...args: string[]) {
@@ -40,8 +42,9 @@ async function runReserved(cmd: string, ...args: string[]) {
   try {
     const cmdFn = getReservedCommand(cmd);
     await cmdFn();
-  } catch (err) {
-    abort(err);
+  } catch (reason) {
+    const message = reason instanceof Error ? reason.message : `${reason}`;
+    abort(message);
   }
 }
 
