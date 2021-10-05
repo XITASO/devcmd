@@ -1,6 +1,6 @@
 import { bold, green, red } from "kleur/colors";
 import { promises as fs } from "fs";
-import { basename, extname, parse } from "path";
+import { extname, parse } from "path";
 
 const ALLOWED_FILE_TYPES = [".js", ".ts"];
 
