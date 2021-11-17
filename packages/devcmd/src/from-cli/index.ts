@@ -4,7 +4,7 @@ import { gray, bold, red, reset } from "kleur/colors";
 import { spawnSync } from "npm-run";
 import path from "path";
 import { formatCommandArgs, formatCommandName } from "../utils/format_utils";
-import { getReservedCommand, reservedCommands } from "../reserved-cmds/get_reserved_command";
+import { getReservedCommand } from "../reserved-cmds";
 import { checkPackageAvailable } from "../utils/npm_utils";
 import { withCmdOnWin } from "../utils/platform_utils";
 import { getDevcmdVersion } from "../utils/version_utils";
@@ -37,10 +37,13 @@ async function runDevcmd(scriptName: string, ...scriptArgs: string[]) {
 }
 
 async function runReserved(cmd: string, ...args: string[]) {
-  assertReservedCmdExists(cmd);
+  const cmdFn = getReservedCommand(cmd);
+
+  if (cmdFn === null) {
+    abort(`Command ${cmd} not found.`);
+  }
 
   try {
-    const cmdFn = getReservedCommand(cmd);
     await cmdFn();
   } catch (reason) {
     const message = reason instanceof Error ? reason.message : `${reason}`;
@@ -58,12 +61,6 @@ function assertInDevCmdsDir() {
   if (path.basename(cwd) !== devCmdsDirName) {
     const message = `\nThe devcmd function must be run inside the ${devCmdsDirName} directory, but CWD is: ${cwd}`;
     abort(message);
-  }
-}
-
-function assertReservedCmdExists(cmd: string) {
-  if (!reservedCommands.includes(cmd)) {
-    abort(`Command ${cmd} not found.`);
   }
 }
 
@@ -136,7 +133,7 @@ async function findAndRunScript(devCmdsDir: string, commandName: string, command
   const message = `No script file found for command '${commandName}'.
     ${devCmdsDirName} dir path: ${devCmdsDir}
     Script files tried: ${scriptFileCandidates.join(", ")}
-    
+
     Use ${green("devcmd --list")} to show available tasks.`;
   throw new Error(message);
 }
