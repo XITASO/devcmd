@@ -74,7 +74,11 @@ async function runInDevCmdsDir(dirPath: string): Promise<void> {
   const [, , ...args] = process.argv;
 
   try {
-    await startProcess("node", ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, ...args], dirPath);
+    await startProcess(
+      "node",
+      ["-e", `require('devcmd/from-cli').run(...process.argv.slice(1))`, "--", ...args],
+      dirPath
+    );
   } catch (err) {
     err instanceof Error ? abort(err.stack ?? err.message) : process.exit(1);
   }

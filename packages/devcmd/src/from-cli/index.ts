@@ -1,15 +1,17 @@
 import { promises as fs } from "fs";
+import { green } from "kleur";
 import { gray, bold, red, reset } from "kleur/colors";
 import { spawnSync } from "npm-run";
 import path from "path";
 import { formatCommandArgs, formatCommandName } from "../utils/format_utils";
+import { getReservedCommand } from "../reserved-cmds";
 import { checkPackageAvailable } from "../utils/npm_utils";
 import { withCmdOnWin } from "../utils/platform_utils";
 import { getDevcmdVersion } from "../utils/version_utils";
 
 const devCmdsDirName = "dev_cmds";
 
-export function run(...args: string[]) {
+export async function run(...args: string[]) {
   printDevcmdHeader();
   assertInDevCmdsDir();
   assertArgsValid(args);
@@ -17,10 +19,36 @@ export function run(...args: string[]) {
   const [scriptName, ...scriptArgs] = args;
 
   printScriptHeader(scriptName, scriptArgs);
-  findAndRunScript(process.cwd(), scriptName, scriptArgs).catch((reason) => {
+
+  if (scriptName.length > 2 && scriptName.indexOf("--") === 0) {
+    await runReserved(scriptName.slice(2), ...scriptArgs);
+  } else {
+    await runDevcmd(scriptName, ...scriptArgs);
+  }
+}
+
+async function runDevcmd(scriptName: string, ...scriptArgs: string[]) {
+  try {
+    await findAndRunScript(process.cwd(), scriptName, scriptArgs);
+  } catch (reason) {
     const message = reason instanceof Error ? reason.message : `${reason}`;
     abort(message);
-  });
+  }
+}
+
+async function runReserved(cmd: string, ...args: string[]) {
+  const cmdFn = getReservedCommand(cmd);
+
+  if (cmdFn === null) {
+    abort(`Command ${cmd} not found.`);
+  }
+
+  try {
+    await cmdFn();
+  } catch (reason) {
+    const message = reason instanceof Error ? reason.message : `${reason}`;
+    abort(message);
+  }
 }
 
 function printDevcmdHeader() {
@@ -38,7 +66,7 @@ function assertInDevCmdsDir() {
 
 function assertArgsValid(args: string[]): args is string[] {
   if (!args || args.length === 0) {
-    abort("\nNo script specified.");
+    abort(`\nNo script specified. Use ${green("devcmd --list")} to show available tasks.`);
   }
   return true;
 }
@@ -104,6 +132,8 @@ async function findAndRunScript(devCmdsDir: string, commandName: string, command
   const scriptFileCandidates = scriptRunners.map(({ extension }) => `${commandName}.${extension}`);
   const message = `No script file found for command '${commandName}'.
     ${devCmdsDirName} dir path: ${devCmdsDir}
-    Script files tried: ${scriptFileCandidates.join(", ")}`;
+    Script files tried: ${scriptFileCandidates.join(", ")}
+
+    Use ${green("devcmd --list")} to show available tasks.`;
   throw new Error(message);
 }
