@@ -88,14 +88,14 @@ async function isFile(path: string): Promise<boolean> {
     const info = await fs.stat(path);
     return info.isFile();
   } catch (error) {
-    if (isNoSuchFileOrDirError(error)) return false;
+    // error code as per https://nodejs.org/docs/latest-v12.x/api/errors.html#errors_common_system_errors
+    if (isNodeError(error) && error.code === "ENOENT") return false;
     throw error;
   }
 }
 
-function isNoSuchFileOrDirError(error: unknown): error is Error {
-  // error code as per https://nodejs.org/docs/latest-v12.x/api/errors.html#errors_common_system_errors
-  return error instanceof Error && (error as NodeJS.ErrnoException).code === "ENOENT";
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error;
 }
 
 const scriptRunners = [
