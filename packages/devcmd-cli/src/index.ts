@@ -43,9 +43,14 @@ async function isDir(path: string): Promise<boolean> {
     const info = await fs.stat(path);
     return info.isDirectory();
   } catch (error) {
-    if (error.code === "ENOENT") return false; // TODO double-check code and comparison value
+    // error code as per https://nodejs.org/docs/latest-v12.x/api/errors.html#errors_common_system_errors
+    if (isNodeError(error) && error.code === "ENOENT") return false;
     throw error;
   }
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error;
 }
 
 async function startProcess(command: string, args: Array<string>, dirPath: string): Promise<number> {

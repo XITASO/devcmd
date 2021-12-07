@@ -83,24 +83,19 @@ function abort(message: string, exitCode: number = 1): never {
   process.exit(exitCode);
 }
 
-async function isDir(path: string): Promise<boolean> {
-  try {
-    const info = await fs.stat(path);
-    return info.isDirectory();
-  } catch (error) {
-    if (error.code === "ENOENT") return false; // TODO double-check code and comparison value
-    throw error;
-  }
-}
-
 async function isFile(path: string): Promise<boolean> {
   try {
     const info = await fs.stat(path);
     return info.isFile();
   } catch (error) {
-    if (error.code === "ENOENT") return false; // TODO double-check code and comparison value
+    // error code as per https://nodejs.org/docs/latest-v12.x/api/errors.html#errors_common_system_errors
+    if (isNodeError(error) && error.code === "ENOENT") return false;
     throw error;
   }
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error;
 }
 
 const scriptRunners = [
