@@ -4,12 +4,15 @@ import { createInterface } from "readline";
 import { gray, red, reset, dim, bold, cyan, $ as kleur$ } from "kleur/colors";
 import { formatCommandArgs, formatCommandName, Styler } from "../utils/format_utils";
 
+export type NonZeroExitCodeHandling = "printErrorAndThrow" | "printNoticeAndReturn";
+
 export interface ProcessInfo {
   command: string;
   args?: string[];
   options?: {
     cwd?: string;
     env?: NodeJS.ProcessEnv;
+    nonZeroExitCodeHandling?: NonZeroExitCodeHandling;
   };
 }
 

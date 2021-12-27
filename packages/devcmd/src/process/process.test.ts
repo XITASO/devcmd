@@ -1,3 +1,5 @@
+import path from "path";
+import { isString } from "../utils/type_utils";
 import { ProcessExecutor } from ".";
 import { ConsoleLike } from "./ProcessExecutor";
 
@@ -54,6 +56,23 @@ describe("ProcessExecutor", () => {
         args: ["-e", "process.exit(2)"],
       });
       await expect(execPromise).rejects.toThrowError("exited with status code 2");
+    });
+
+    test("setting 'cwd' options changes process's CWD", async () => {
+      const capturingConsole = new CapturingConsole();
+      const execPiped = new ProcessExecutor(capturingConsole).execPiped;
+      const childProcessCwd = path.dirname(path.normalize(process.cwd()));
+      const outputPrefix = "cpcwd=";
+      await execPiped({
+        command: "node",
+        args: ["-e", `console.log('${outputPrefix}' + process.cwd());`],
+        options: { cwd: childProcessCwd },
+      });
+      const outputLines = capturingConsole.logLines.filter(
+        (l) => isString(l.message) && l.message.startsWith(outputPrefix)
+      );
+      expect(outputLines).toHaveLength(1);
+      expect(outputLines[0].message).toEqual(`${outputPrefix}${childProcessCwd}`);
     });
   });
 
@@ -140,6 +159,20 @@ describe("ProcessExecutor", () => {
       const execToString = new ProcessExecutor(nullConsole).execToString;
       const execPromise = execToString({ command: "node", args: ["-e", "process.exit(2)"] });
       await expect(execPromise).rejects.toThrowError("exited with status code 2");
+    });
+
+    test("setting 'cwd' options changes process's CWD", async () => {
+      const execToString = new ProcessExecutor(nullConsole).execToString;
+      const cwd = process.cwd();
+      const childProcessCwd = path.dirname(path.normalize(cwd));
+      const outputPrefix = "cpcwd=";
+      const { stdout } = await execToString({
+        command: "node",
+        args: ["-e", `console.log('${outputPrefix}' + process.cwd());`],
+        options: { cwd: childProcessCwd },
+      });
+      expect(stdout).not.toContain(cwd);
+      expect(stdout).toContain(`${outputPrefix}${childProcessCwd}`);
     });
   });
 });
