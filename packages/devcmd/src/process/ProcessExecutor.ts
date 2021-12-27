@@ -36,6 +36,10 @@ class SafeConsoleLike implements ConsoleLike {
   }
 }
 
+interface HasExitCode {
+  exitCode: number | null;
+}
+
 /**
  * Facilities to execute single or multiple external processes
  * with flexible forwarding of child process output.
@@ -180,9 +184,10 @@ export class ProcessExecutor {
     this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
   }
 
-  async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string }> {
+  async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string } & HasExitCode> {
     this.printNotice(`Starting process: ${formatProcessInvocation(processInfo)} and capturing output`);
     const options = processInfo.options ?? {};
+    const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
 
     let childStdout: string = "";
     let childStderr: string = "";
@@ -196,7 +201,7 @@ export class ProcessExecutor {
 
     const processCompletion = childProcessCompletion(childProcess);
 
-    const [code] = await Promise.all([
+    const [exitCode] = await Promise.all([
       processCompletion,
       logStream(childProcess.stdout, (line) => {
         childStdout += line + "\n";
@@ -206,18 +211,27 @@ export class ProcessExecutor {
       }),
     ]);
 
-    if (code !== 0) {
+    if (exitCode !== 0) {
       const message =
-        `Process '${processInfo.command}' exited with status code ${code}\n\n` +
+        `Process '${processInfo.command}' exited with status code ${exitCode}\n\n` +
         `STDOUT WAS:\n${childStdout}\n\n` +
         `STDERR WAS:\n${childStderr}\n\n`;
-      this.printError(message);
-      throw new Error(message);
+
+      switch (nonZeroExitCodeHandling) {
+        case "printErrorAndThrow":
+          this.printError(message);
+          throw new Error(message);
+        case "printNoticeAndReturn":
+          this.printNotice(message);
+          break;
+        default:
+          throw new Error(`Unknown value for option 'nonZeroExitCodeHandling': '${nonZeroExitCodeHandling}'`);
+      }
+    } else {
+      this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
     }
 
-    this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
-
-    return { stdout: childStdout, stderr: childStderr };
+    return { stdout: childStdout, stderr: childStderr, exitCode };
   }
 }
 
