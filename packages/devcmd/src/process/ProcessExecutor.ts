@@ -159,9 +159,10 @@ export class ProcessExecutor {
     consoleError(noticeStyled(`Process ${formatProcessCommand(processInfo)} exited successfully.`));
   }
 
-  async execInTty(processInfo: ProcessInfo): Promise<void> {
+  async execInTty(processInfo: ProcessInfo): Promise<HasExitCode> {
     this.printNotice(`Starting process: ${formatProcessInvocation(processInfo)} attached to TTY`);
     const options = processInfo.options ?? {};
+    const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
 
     const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
       cwd: options.cwd,
@@ -171,15 +172,26 @@ export class ProcessExecutor {
       },
     });
 
-    const code = await childProcessCompletion(childProcess);
+    const exitCode = await childProcessCompletion(childProcess);
 
-    if (code !== 0) {
-      const message = formatNonZeroExitCodeMessage(processInfo, code);
-      this.printError(message);
-      throw new Error(message);
+    if (exitCode !== 0) {
+      const message = formatNonZeroExitCodeMessage(processInfo, exitCode);
+
+      switch (nonZeroExitCodeHandling) {
+        case "printErrorAndThrow":
+          this.printError(message);
+          throw new Error(message);
+        case "printNoticeAndReturn":
+          this.printNotice(message);
+          break;
+        default:
+          throw new Error(`Unknown value for option 'nonZeroExitCodeHandling': '${nonZeroExitCodeHandling}'`);
+      }
+    } else {
+      this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
     }
 
-    this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
+    return { exitCode };
   }
 
   async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string } & HasExitCode> {

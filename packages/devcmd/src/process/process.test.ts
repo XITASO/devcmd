@@ -7,28 +7,62 @@ const ansiFormat = `(?:\\x1b\\[\\d+m)`;
 
 describe("ProcessExecutor", () => {
   describe("execInTty()", () => {
-    test("process that successfully exits works (with console)", async () => {
-      const execInTty = new ProcessExecutor(nullConsole).execInTty;
-      await execInTty({ command: "node", args: ["--version"] });
+    describe("with default options", () => {
+      test("process that successfully exits works (with console)", async () => {
+        const execInTty = new ProcessExecutor(nullConsole).execInTty;
+        await execInTty({ command: "node", args: ["--version"] });
+      });
+
+      test("process that successfully exits works (with no console)", async () => {
+        const execInTty = new ProcessExecutor(null as any).execInTty;
+        await execInTty({ command: "node", args: ["--version"] });
+      });
+
+      test("unknown executable throws", async () => {
+        expect.assertions(1);
+        const execInTty = new ProcessExecutor(nullConsole).execInTty;
+        const execPromise = execInTty({ command: "unknown_executable" });
+        await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
+      });
+
+      test("failing executable prints and throws", async () => {
+        expect.assertions(3);
+        const capturingConsole = new CapturingConsole();
+        const execInTty = new ProcessExecutor(capturingConsole).execInTty;
+        const execPromise = execInTty({ command: "node", args: ["-e", "process.exit(2)"] });
+        await expect(execPromise).rejects.toThrowError("exited with status code 2");
+        expect(capturingConsole.errorLines).toHaveLength(2);
+        expect(capturingConsole.errorLines[1].message).toMatch(
+          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+        );
+      });
     });
 
-    test("process that successfully exits works (with no console)", async () => {
-      const execInTty = new ProcessExecutor(null as any).execInTty;
-      await execInTty({ command: "node", args: ["--version"] });
-    });
+    describe("with option nonZeroExitCodeHandling=printNoticeAndReturn", () => {
+      test("unknown executable throws", async () => {
+        expect.assertions(1);
+        const execInTty = new ProcessExecutor(nullConsole).execInTty;
+        const execPromise = execInTty({
+          command: "unknown_executable",
+          options: { nonZeroExitCodeHandling: "printNoticeAndReturn" },
+        });
+        await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
+      });
 
-    test("unknown executable throws", async () => {
-      expect.assertions(1);
-      const execInTty = new ProcessExecutor(nullConsole).execInTty;
-      const execPromise = execInTty({ command: "unknown_executable" });
-      await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
-    });
-
-    test("failing executable throws", async () => {
-      expect.assertions(1);
-      const execInTty = new ProcessExecutor(nullConsole).execInTty;
-      const execPromise = execInTty({ command: "node", args: ["-e", "process.exit(2)"] });
-      await expect(execPromise).rejects.toThrowError("exited with status code 2");
+      test("failing executable prints and returns without throwing", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execInTty = new ProcessExecutor(capturingConsole).execInTty;
+        const result = await execInTty({
+          command: "node",
+          args: ["-e", "process.exit(2)"],
+          options: { nonZeroExitCodeHandling: "printNoticeAndReturn" },
+        });
+        expect(result.exitCode).toBe(2);
+        expect(capturingConsole.errorLines).toHaveLength(2);
+        expect(capturingConsole.errorLines[1].message).toMatch(
+          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+        );
+      });
     });
   });
 
@@ -190,7 +224,6 @@ describe("ProcessExecutor", () => {
           options: { nonZeroExitCodeHandling: "printNoticeAndReturn" },
         });
         expect(result.exitCode).toBe(2);
-        expect(result.stderr).toHaveLength(0);
         expect(result.stdout).toBe("still works\n");
         expect(capturingConsole.errorLines).toHaveLength(2);
         expect(capturingConsole.errorLines[1].message).toMatch(
