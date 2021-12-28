@@ -36,10 +36,6 @@ class SafeConsoleLike implements ConsoleLike {
   }
 }
 
-interface HasExitCode {
-  exitCode: number | null;
-}
-
 /**
  * Facilities to execute single or multiple external processes
  * with flexible forwarding of child process output.
@@ -144,14 +140,14 @@ export class ProcessExecutor {
       },
     });
 
-    const [code] = await Promise.all([
+    const [{ exitCode }] = await Promise.all([
       childProcessCompletion(childProcess),
       logStream(childProcess.stdout, consoleLog),
       logStream(childProcess.stderr, consoleError),
     ]);
 
-    if (code !== 0) {
-      const message = formatNonZeroExitCodeMessage(processInfo, code);
+    if (exitCode !== 0) {
+      const message = formatNonZeroExitCodeMessage(processInfo, exitCode);
       consoleError(red(message));
       throw new Error(message);
     }
@@ -159,7 +155,7 @@ export class ProcessExecutor {
     consoleError(noticeStyled(`Process ${formatProcessCommand(processInfo)} exited successfully.`));
   }
 
-  async execInTty(processInfo: ProcessInfo): Promise<HasExitCode> {
+  async execInTty(processInfo: ProcessInfo): Promise<NodeExitInfo> {
     this.printNotice(`Starting process: ${formatProcessInvocation(processInfo)} attached to TTY`);
     const options = processInfo.options ?? {};
     const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
@@ -172,7 +168,7 @@ export class ProcessExecutor {
       },
     });
 
-    const exitCode = await childProcessCompletion(childProcess);
+    const { exitCode, exitSignal } = await childProcessCompletion(childProcess);
 
     if (exitCode !== 0) {
       const message = formatNonZeroExitCodeMessage(processInfo, exitCode);
@@ -191,10 +187,10 @@ export class ProcessExecutor {
       this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
     }
 
-    return { exitCode };
+    return { exitCode, exitSignal };
   }
 
-  async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string } & HasExitCode> {
+  async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string } & NodeExitInfo> {
     this.printNotice(`Starting process: ${formatProcessInvocation(processInfo)} and capturing output`);
     const options = processInfo.options ?? {};
     const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
@@ -211,7 +207,7 @@ export class ProcessExecutor {
 
     const processCompletion = childProcessCompletion(childProcess);
 
-    const [exitCode] = await Promise.all([
+    const [{ exitCode, exitSignal }] = await Promise.all([
       processCompletion,
       logStream(childProcess.stdout, (line) => {
         childStdout += line + "\n";
@@ -242,14 +238,31 @@ export class ProcessExecutor {
       this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
     }
 
-    return { stdout: childStdout, stderr: childStderr, exitCode };
+    return { stdout: childStdout, stderr: childStderr, exitCode, exitSignal };
   }
 }
 
-function childProcessCompletion(childProcess: ChildProcess): Promise<number | null> {
-  return new Promise<number | null>((resolve, reject) => {
+/**
+ * See Node's documentation on the `exit` event of `ChildProcess`:
+ * https://nodejs.org/docs/latest-v12.x/api/child_process.html#child_process_event_exit
+ */
+export interface NodeExitInfo {
+  /**
+   * If the process exited on its own, `exitCode` is the final exit code of the process,
+   * otherwise `null`. Node's API assures that either this or `exitSignal` is always non-`null`.
+   */
+  exitCode: number | null;
+  /**
+   * If the process exited on its own, `exitCode` is the final exit code of the process,
+   * otherwise `null`. Node's API assures that either this or `exitSignal` is always non-`null`.
+   */
+  exitSignal: NodeJS.Signals | null;
+}
+
+function childProcessCompletion(childProcess: ChildProcess): Promise<NodeExitInfo> {
+  return new Promise<NodeExitInfo>((resolve, reject) => {
     childProcess.on("error", (err) => reject(err));
-    childProcess.on("exit", (code) => resolve(code));
+    childProcess.on("exit", (exitCode, exitSignal) => resolve({ exitCode, exitSignal }));
   });
 }
 
