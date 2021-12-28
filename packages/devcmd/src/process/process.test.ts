@@ -3,6 +3,8 @@ import { isString } from "../utils/type_utils";
 import { ProcessExecutor } from ".";
 import { ConsoleLike } from "./ProcessExecutor";
 
+const ansiFormat = `(?:\\x1b\\[\\d+m)`;
+
 describe("ProcessExecutor", () => {
   describe("execInTty()", () => {
     test("process that successfully exits works (with console)", async () => {
@@ -162,7 +164,9 @@ describe("ProcessExecutor", () => {
         const execPromise = execToString({ command: "node", args: ["-e", "process.exit(2)"] });
         await expect(execPromise).rejects.toThrowError("exited with status code 2");
         expect(capturingConsole.errorLines).toHaveLength(2);
-        expect(capturingConsole.errorLines[1].message).toMatch(/Process 'node' exited with status code 2/);
+        expect(capturingConsole.errorLines[1].message).toMatch(
+          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+        );
       });
     });
 
@@ -189,7 +193,9 @@ describe("ProcessExecutor", () => {
         expect(result.stderr).toHaveLength(0);
         expect(result.stdout).toBe("still works\n");
         expect(capturingConsole.errorLines).toHaveLength(2);
-        expect(capturingConsole.errorLines[1].message).toMatch(/Process 'node' exited with status code 2/);
+        expect(capturingConsole.errorLines[1].message).toMatch(
+          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+        );
       });
     });
 

@@ -151,8 +151,7 @@ export class ProcessExecutor {
     ]);
 
     if (code !== 0) {
-      const commandName = formatProcessCommand(processInfo, identity, bold);
-      const message = `Process ${commandName} exited with status code ${code}`;
+      const message = formatNonZeroExitCodeMessage(processInfo, code);
       consoleError(red(message));
       throw new Error(message);
     }
@@ -175,8 +174,7 @@ export class ProcessExecutor {
     const code = await childProcessCompletion(childProcess);
 
     if (code !== 0) {
-      const commandName = formatProcessCommand(processInfo, identity, bold);
-      const message = `Process ${commandName} exited with status code ${code}`;
+      const message = formatNonZeroExitCodeMessage(processInfo, code);
       this.printError(message);
       throw new Error(message);
     }
@@ -212,9 +210,10 @@ export class ProcessExecutor {
     ]);
 
     if (exitCode !== 0) {
+      const nonZeroExitCodeMessage = formatNonZeroExitCodeMessage(processInfo, exitCode);
       const message =
-        `Process '${processInfo.command}' exited with status code ${exitCode}\n\n` +
-        `STDOUT WAS:\n${childStdout}\n\n` +
+        `${nonZeroExitCodeMessage}\n\n` + //
+        `STDOUT WAS:\n${childStdout}\n\n` + //
         `STDERR WAS:\n${childStderr}\n\n`;
 
       switch (nonZeroExitCodeHandling) {
@@ -300,6 +299,11 @@ function formatProcessCommand(
   highlightStyler: Styler = noticeHighlightStyled
 ): string {
   return formatCommandName(processInfo.command, baseStyler, highlightStyler);
+}
+
+function formatNonZeroExitCodeMessage(processInfo: ProcessInfo, code: number | null) {
+  const commandName = formatProcessCommand(processInfo, identity, bold);
+  return `Process ${commandName} exited with status code ${code}`;
 }
 
 function formatProcessInvocation(
