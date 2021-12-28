@@ -69,8 +69,8 @@ export class ProcessExecutor {
    * } catch {}
    * ```
    */
-  async execPiped(processInfo: ProcessInfo): Promise<void> {
-    await this.execPipedInternal(processInfo, "");
+  async execPiped(processInfo: ProcessInfo): Promise<NodeExitInfo> {
+    return await this.execPipedInternal(processInfo, "");
   }
 
   /**
@@ -121,7 +121,7 @@ export class ProcessExecutor {
     this.consoleLike.error(red(message), ...optionalParams);
   }
 
-  private async execPipedInternal(processInfo: ProcessInfo, logPrefix: string): Promise<void> {
+  private async execPipedInternal(processInfo: ProcessInfo, logPrefix: string): Promise<NodeExitInfo> {
     const withPrefix = (line: string) => `${logPrefix}${line}`;
     const consoleLog = (line: string, ...params: any[]) => this.consoleLike.log(withPrefix(line), ...params);
     const consoleError = (line: string, ...params: any[]) => this.consoleLike.error(withPrefix(line), ...params);
@@ -129,6 +129,7 @@ export class ProcessExecutor {
     consoleError(noticeStyled(`Starting process: ${formatProcessInvocation(processInfo)}`));
 
     const options = processInfo.options ?? {};
+    const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
 
     const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
       cwd: options.cwd,
@@ -140,7 +141,7 @@ export class ProcessExecutor {
       },
     });
 
-    const [{ exitCode }] = await Promise.all([
+    const [{ exitCode, exitSignal }] = await Promise.all([
       childProcessCompletion(childProcess),
       logStream(childProcess.stdout, consoleLog),
       logStream(childProcess.stderr, consoleError),
@@ -148,11 +149,21 @@ export class ProcessExecutor {
 
     if (exitCode !== 0) {
       const message = formatNonZeroExitCodeMessage(processInfo, exitCode);
-      consoleError(red(message));
-      throw new Error(message);
+      switch (nonZeroExitCodeHandling) {
+        case "printErrorAndThrow":
+          consoleError(red(message));
+          throw new Error(message);
+        case "printNoticeAndReturn":
+          consoleError(noticeStyled(message));
+          break;
+        default:
+          throw new Error(`Unknown value for option 'nonZeroExitCodeHandling': '${nonZeroExitCodeHandling}'`);
+      }
+    } else {
+      consoleError(noticeStyled(`Process ${formatProcessCommand(processInfo)} exited successfully.`));
     }
 
-    consoleError(noticeStyled(`Process ${formatProcessCommand(processInfo)} exited successfully.`));
+    return { exitCode, exitSignal };
   }
 
   async execInTty(processInfo: ProcessInfo): Promise<NodeExitInfo> {
@@ -285,7 +296,8 @@ function isOk(r: Result): r is Ok {
  * @param func The promise-returning function
  * @returns Returns {@link Ok} on success and {@link Err} on error
  */
-async function wrapResult(func: () => Promise<void>): Promise<Result> {
+async function wrapResult(func: () => Promise<any>): Promise<Result> {
+  // TODO
   try {
     await func();
     return { ok: true };

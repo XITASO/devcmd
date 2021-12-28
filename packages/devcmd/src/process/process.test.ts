@@ -67,31 +67,64 @@ describe("ProcessExecutor", () => {
   });
 
   describe("execPiped()", () => {
-    test("process that successfully exits works (with console)", async () => {
-      const execPiped = new ProcessExecutor(nullConsole).execPiped;
-      await execPiped({ command: "node", args: ["--version"] });
-    });
-
-    test("process that successfully exits works (with no console)", async () => {
-      const execPiped = new ProcessExecutor(null as any).execPiped;
-      await execPiped({ command: "node", args: ["--version"] });
-    });
-
-    test("unknown executable throws", async () => {
-      expect.assertions(1);
-      const execPiped = new ProcessExecutor(nullConsole).execPiped;
-      const execPromise = execPiped({ command: "unknown_executable" });
-      await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
-    });
-
-    test("failing executable throws", async () => {
-      expect.assertions(1);
-      const execPiped = new ProcessExecutor(nullConsole).execPiped;
-      const execPromise = execPiped({
-        command: "node",
-        args: ["-e", "process.exit(2)"],
+    describe("with default options", () => {
+      test("process that successfully exits works (with console)", async () => {
+        const execPiped = new ProcessExecutor(nullConsole).execPiped;
+        await execPiped({ command: "node", args: ["--version"] });
       });
-      await expect(execPromise).rejects.toThrowError("exited with status code 2");
+
+      test("process that successfully exits works (with no console)", async () => {
+        const execPiped = new ProcessExecutor(null as any).execPiped;
+        await execPiped({ command: "node", args: ["--version"] });
+      });
+
+      test("unknown executable throws", async () => {
+        expect.assertions(1);
+        const execPiped = new ProcessExecutor(nullConsole).execPiped;
+        const execPromise = execPiped({ command: "unknown_executable" });
+        await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
+      });
+
+      test("failing process prints and throws", async () => {
+        expect.assertions(3);
+        const capturingConsole = new CapturingConsole();
+        const execPiped = new ProcessExecutor(capturingConsole).execPiped;
+        const execPromise = execPiped({ command: "node", args: ["-e", "process.exit(2)"] });
+        await expect(execPromise).rejects.toThrowError("exited with status code 2");
+        expect(capturingConsole.errorLines).toHaveLength(2);
+        expect(capturingConsole.errorLines[1].message).toMatch(
+          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+        );
+      });
+    });
+
+    describe("with option nonZeroExitCodeHandling=printNoticeAndReturn", () => {
+      test("unknown executable throws", async () => {
+        expect.assertions(1);
+        const execPiped = new ProcessExecutor(nullConsole).execPiped;
+        const execPromise = execPiped({
+          command: "unknown_executable",
+          options: { nonZeroExitCodeHandling: "printNoticeAndReturn" },
+        });
+        await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
+      });
+
+      test("failing executable prints and returns without throwing", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execPiped = new ProcessExecutor(capturingConsole).execPiped;
+        const result = await execPiped({
+          command: "node",
+          args: ["-e", "console.log('still works'); process.exit(2)"],
+          options: { nonZeroExitCodeHandling: "printNoticeAndReturn" },
+        });
+        expect(result.exitCode).toBe(2);
+        expect(capturingConsole.logLines).toHaveLength(1);
+        expect(capturingConsole.logLines[0].message).toBe("still works");
+        expect(capturingConsole.errorLines).toHaveLength(2);
+        expect(capturingConsole.errorLines[1].message).toMatch(
+          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+        );
+      });
     });
 
     test("setting 'cwd' option changes process's CWD", async () => {
