@@ -86,22 +86,24 @@ export class ProcessExecutor {
    * <caption>Printing node and npm version to the console</caption>
    * ```
    * await execPipedParallel({
-   *   nodeVersion: {
-   *     command: "node",
-   *     args: ["-v"],
-   *   },
-   *   npmVersion: {
-   *     command: "npm",
-   *     args: ["--version"],
-   *   },
+   *   nodeVersion: { command: "node", args: ["-v"] },
+   *   npmVersion: { command: "npm", args: ["--version"] },
    * });
    * ```
    */
-  async execPipedParallel(processMap: { [id: string]: ProcessInfo } | { [id: number]: ProcessInfo }): Promise<void> {
-    const processEntries = Object.entries(processMap);
+  async execPipedParallel<T extends { [id: string]: ProcessInfo }>(
+    processMap: T
+  ): Promise<{ [id in keyof T]: NodeExitInfo }>;
+  async execPipedParallel(processList: ProcessInfo[]): Promise<NodeExitInfo[]>;
+
+  async execPipedParallel(
+    processMapOrList: ProcessInfo[] | { [id: string]: ProcessInfo }
+  ): Promise<NodeExitInfo[] | { [id: string]: NodeExitInfo }> {
+    const processEntries = Object.entries(processMapOrList);
     this.printNotice(`Beginning parallel execution of ${processEntries.length} processes...`);
+    let results: NodeExitInfo[];
     try {
-      unwrapResults(
+      results = unwrapResults(
         await Promise.all([
           ...processEntries.map(([id, processInfo]) =>
             wrapResult(() => this.execPipedInternal(processInfo, cyan(`<${id}> `)))
@@ -111,6 +113,10 @@ export class ProcessExecutor {
     } finally {
       this.printNotice("Finished parallel execution.");
     }
+
+    if (Array.isArray(processMapOrList)) return results;
+
+    return Object.fromEntries(processEntries.map(([key], idx) => [key, results[idx]]));
   }
 
   private printNotice(message?: any, ...optionalParams: any[]): void {
@@ -277,7 +283,7 @@ function childProcessCompletion(childProcess: ChildProcess): Promise<NodeExitInf
   });
 }
 
-type Ok = { ok: true };
+type Ok = { ok: true; exitInfo: NodeExitInfo };
 type Err = { err: unknown };
 
 type Result = Ok | Err;
@@ -296,11 +302,10 @@ function isOk(r: Result): r is Ok {
  * @param func The promise-returning function
  * @returns Returns {@link Ok} on success and {@link Err} on error
  */
-async function wrapResult(func: () => Promise<any>): Promise<Result> {
-  // TODO
+async function wrapResult(func: () => Promise<NodeExitInfo>): Promise<Result> {
   try {
-    await func();
-    return { ok: true };
+    const exitInfo = await func();
+    return { ok: true, exitInfo };
   } catch (err) {
     return { err };
   }
@@ -312,11 +317,13 @@ async function wrapResult(func: () => Promise<any>): Promise<Result> {
  *
  * @param results An array of {@link Result}
  */
-function unwrapResults(results: Result[]): void {
+function unwrapResults(results: Result[]): NodeExitInfo[] {
   const errs = results.filter(isErr).map((r) => r.err);
 
   // For now, only rethrow the first error to get at least one correct stack trace.
   if (errs.length >= 1) throw errs[0];
+
+  return results.map((r) => (r as Ok).exitInfo);
 }
 
 async function logStream(stream: Readable, log: (message: string) => void): Promise<void> {

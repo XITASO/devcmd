@@ -146,58 +146,120 @@ describe("ProcessExecutor", () => {
   });
 
   describe("execPipedParallel()", () => {
-    test("succeeding processes by name works (with console)", async () => {
-      const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
-      await execPipedParallel({
-        node: { command: "node", args: ["--version"] },
-        npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+    describe("with default options", () => {
+      test("succeeding processes by name works (with console)", async () => {
+        const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
+        await execPipedParallel({
+          node: { command: "node", args: ["--version"] },
+          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+        });
       });
-    });
 
-    test("succeeding processes by name works (with no console)", async () => {
-      const execPipedParallel = new ProcessExecutor(undefined as any).execPipedParallel;
-      await execPipedParallel({
-        node: { command: "node", args: ["--version"] },
-        npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+      test("succeeding processes by name works (with no console)", async () => {
+        const execPipedParallel = new ProcessExecutor(undefined as any).execPipedParallel;
+        await execPipedParallel({
+          node: { command: "node", args: ["--version"] },
+          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+        });
       });
-    });
 
-    test("succeeding processes by index works", async () => {
-      const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
-      await execPipedParallel({
-        1: { command: "node", args: ["--version"] },
-        2: { command: withCmdOnWin("npm"), args: ["--version"] },
+      test("succeeding processes by index works", async () => {
+        const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
+        await execPipedParallel({
+          1: { command: "node", args: ["--version"] },
+          2: { command: withCmdOnWin("npm"), args: ["--version"] },
+        });
       });
-    });
 
-    test("succeeding processes as array works", async () => {
-      const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
-      await execPipedParallel([
-        { command: "node", args: ["--version"] },
-        { command: withCmdOnWin("npm"), args: ["--version"] },
-      ]);
-    });
+      test("succeeding processes as array works", async () => {
+        const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
+        await execPipedParallel([
+          { command: "node", args: ["--version"] },
+          { command: withCmdOnWin("npm"), args: ["--version"] },
+        ]);
+      });
 
-    test("single failing process throws", async () => {
-      expect.assertions(1);
-      const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
-      await expect(
-        execPipedParallel({
+      test("single failing process prints and throws", async () => {
+        expect.assertions(4);
+        const capturingConsole = new CapturingConsole();
+        const execPipedParallel = new ProcessExecutor(capturingConsole).execPipedParallel;
+        const execPromise = execPipedParallel({
           node: { command: "node", args: ["-e", "process.exit(2)"] },
           npm: { command: withCmdOnWin("npm"), args: ["--version"] },
-        })
-      ).rejects.toThrowError();
+        });
+        await expect(execPromise).rejects.toThrowError("exited with status code 2");
+        expect(capturingConsole.errorLines).toHaveLength(6);
+        const errorLine = capturingConsole.errorLines.filter(
+          (l) => isString(l.message) && l.message.includes("exited with status code")
+        );
+        expect(errorLine).toHaveLength(1);
+        expect(errorLine[0].message).toMatch(
+          new RegExp(
+            `^${ansiFormat}?<node> ${ansiFormat}?${ansiFormat}?Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`
+          )
+        );
+      });
+
+      test("multiple failing processes throws", async () => {
+        expect.assertions(1);
+        const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
+        await expect(
+          execPipedParallel({
+            node: { command: "node", args: ["-e", "process.exit(2)"] },
+            unknown_executable: { command: "unknown_executable" },
+          })
+        ).rejects.toThrowError();
+      });
     });
 
-    test("multiple failing process throws", async () => {
-      expect.assertions(1);
-      const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
-      await expect(
-        execPipedParallel({
-          node: { command: "node", args: ["-e", "process.exit(2)"] },
-          unknown_executable: { command: "unknown_executable" },
-        })
-      ).rejects.toThrowError();
+    describe("with option nonZeroExitCodeHandling=printNoticeAndReturn", () => {
+      test("single failing process prints and returns without throwing", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execPipedParallel = new ProcessExecutor(capturingConsole).execPipedParallel;
+        const results = await execPipedParallel({
+          node: {
+            command: "node",
+            args: ["-e", "process.exit(2)"],
+            options: { nonZeroExitCodeHandling: "printNoticeAndReturn" },
+          },
+          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+        });
+        expect(results.node.exitCode).toBe(2);
+        expect(capturingConsole.errorLines).toHaveLength(6);
+        const errorLine = capturingConsole.errorLines.filter(
+          (l) => isString(l.message) && l.message.includes("exited with status code")
+        );
+        expect(errorLine).toHaveLength(1);
+        expect(errorLine[0].message).toMatch(
+          new RegExp(
+            `^${ansiFormat}?<node> ${ansiFormat}?${ansiFormat}?Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`
+          )
+        );
+      });
+
+      test("multiple failing processes prints and returns without throwing", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execPipedParallel = new ProcessExecutor(capturingConsole).execPipedParallel;
+        const results = await execPipedParallel([
+          {
+            command: "node",
+            args: ["-e", "process.exit(2)"],
+            options: { nonZeroExitCodeHandling: "printNoticeAndReturn" },
+          },
+          {
+            command: "node",
+            args: ["-e", "process.exit(5)"],
+            options: { nonZeroExitCodeHandling: "printNoticeAndReturn" },
+          },
+        ]);
+        expect(results[0].exitCode).toBe(2);
+        expect(results[1].exitCode).toBe(5);
+        expect(capturingConsole.errorLines).toHaveLength(6);
+        const errorLine = capturingConsole.errorLines.filter(
+          (l) => isString(l.message) && l.message.includes("exited with status code")
+        );
+        expect(errorLine).toHaveLength(2);
+      });
     });
   });
 
@@ -248,7 +310,7 @@ describe("ProcessExecutor", () => {
         await expect(execPromise).rejects.toThrowError("spawn unknown_executable ENOENT");
       });
 
-      test("failing executable prints and returns without throwing", async () => {
+      test("failing process prints and returns without throwing", async () => {
         const capturingConsole = new CapturingConsole();
         const execToString = new ProcessExecutor(capturingConsole).execToString;
         const result = await execToString({
