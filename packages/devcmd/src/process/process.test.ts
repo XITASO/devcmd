@@ -33,7 +33,7 @@ describe("ProcessExecutor", () => {
         await expect(execPromise).rejects.toThrowError("exited with status code 2");
         expect(capturingConsole.errorLines).toHaveLength(2);
         expect(capturingConsole.errorLines[1].message).toMatch(
-          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+          new RegExp(`^${ansiFormat}?Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
         );
       });
     });
@@ -60,7 +60,7 @@ describe("ProcessExecutor", () => {
         expect(result.exitCode).toBe(2);
         expect(capturingConsole.errorLines).toHaveLength(2);
         expect(capturingConsole.errorLines[1].message).toMatch(
-          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+          new RegExp(`^${ansiFormat}?Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
         );
       });
     });
@@ -93,7 +93,7 @@ describe("ProcessExecutor", () => {
         await expect(execPromise).rejects.toThrowError("exited with status code 2");
         expect(capturingConsole.errorLines).toHaveLength(2);
         expect(capturingConsole.errorLines[1].message).toMatch(
-          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+          new RegExp(`^${ansiFormat}?Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
         );
       });
     });
@@ -122,7 +122,7 @@ describe("ProcessExecutor", () => {
         expect(capturingConsole.logLines[0].message).toBe("still works");
         expect(capturingConsole.errorLines).toHaveLength(2);
         expect(capturingConsole.errorLines[1].message).toMatch(
-          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+          new RegExp(`^${ansiFormat}?Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
         );
       });
     });
@@ -294,7 +294,7 @@ describe("ProcessExecutor", () => {
         await expect(execPromise).rejects.toThrowError("exited with status code 2");
         expect(capturingConsole.errorLines).toHaveLength(2);
         expect(capturingConsole.errorLines[1].message).toMatch(
-          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+          new RegExp(`^${ansiFormat}?Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
         );
       });
     });
@@ -322,7 +322,7 @@ describe("ProcessExecutor", () => {
         expect(result.stdout).toBe("still works\n");
         expect(capturingConsole.errorLines).toHaveLength(2);
         expect(capturingConsole.errorLines[1].message).toMatch(
-          new RegExp(`^${ansiFormat}Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
+          new RegExp(`^${ansiFormat}?Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`)
         );
       });
     });
