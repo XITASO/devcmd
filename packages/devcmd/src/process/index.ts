@@ -51,4 +51,4 @@ export const execPipedParallel = DefaultProcessExecutor.execPipedParallel;
 export const execInTty = DefaultProcessExecutor.execInTty;
 export const execToString = DefaultProcessExecutor.execToString;
 
-export { ProcessExecutor, ProcessInfo } from "./ProcessExecutor";
+export { NodeExitInfo, NonZeroExitCodeHandling, ProcessExecutor, ProcessInfo } from "./ProcessExecutor";
