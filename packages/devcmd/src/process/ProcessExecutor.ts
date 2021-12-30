@@ -4,14 +4,31 @@ import { createInterface } from "readline";
 import { gray, red, reset, dim, bold, cyan, $ as kleur$ } from "kleur/colors";
 import { formatCommandArgs, formatCommandName, Styler } from "../utils/format_utils";
 
+/**
+ * Handling of non-zero exit codes of executed processes.
+ *
+ * * `"printErrorAndThrow"`: Emit a message about the non-zero exit code as an
+ *   error to the console, and throw the same message as an `Error`.
+ * * `"printNoticeAndReturn"`: Emit a message about the non-zero exit code as a
+ *   notice to the console and return the non-zero exit code. No error is thrown.
+ * */
 export type NonZeroExitCodeHandling = "printErrorAndThrow" | "printNoticeAndReturn";
 
+/** Information describing how to execute a process. */
 export interface ProcessInfo {
+  /** Command to execute, usually the executable name. */
   command: string;
+  /** Arguments to pass to the command, if any. */
   args?: string[];
+  /** Options modifying the way the process is executed. */
   options?: {
+    /** Working directory for the process. Defaults to caller's current working directory. */
     cwd?: string;
+    /** Dictionary of environment variables. Defaults to caller's environment.
+     * If specified, caller's environment is not automatically included, so caller
+     * needs to do this if desired. */
     env?: NodeJS.ProcessEnv;
+    /** Specifies how to handle a non-zero exit code. */
     nonZeroExitCodeHandling?: NonZeroExitCodeHandling;
   };
 }
@@ -52,50 +69,88 @@ export class ProcessExecutor {
   }
 
   /**
-   * Executes a process and throws an exception if the exit code is non-zero.
-   * Outputs (stdout/stderr) of the process are sent to our stdout/stderr.
+   * Executes a process and pipes its outputs (stdout/stderr) to the log/error level of
+   * this instance's {@link ConsoleLike}.
+   *
+   * The "nonZeroExitCodeHandling" option of the given {@link ProcessInfo} determines
+   * whether this method throws on a non-zero exit code.
+   *
+   * **Example:** Running a ping against localhost:
+   * ```
+   * await execPiped({ command: 'ping', args: ['127.0.0.1'] });
+   * ```
+   *
+   * **Example:** Deleting a Docker container and ignoring non-zero exit codes (e.g. when
+   * container does not exit):
+   * ```
+   * await execPiped({
+   *   command: 'docker',
+   *   args: ['rm', '--force', 'myContainerName'],
+   *   options: { nonZeroExitCodeHandling: "printNoticeAndReturn" },
+   * });
+   * ```
    *
    * @param processInfo Information about the process to execute
-   * @returns A promise that resolves on success and rejects on error
-   *
-   * @example
-   * <caption>Running ping 127.0.0.1 on localhost</caption>
-   * ```
-   * try {
-   *   await execPiped({
-   *     command: 'ping',
-   *     args: ['127.0.0.1'],
-   *   });
-   * } catch {}
-   * ```
+   * @returns A promise resolving to an object with exit status info once the process exits
    */
   async execPiped(processInfo: ProcessInfo): Promise<NodeExitInfo> {
     return await this.execPipedInternal(processInfo, "");
   }
 
   /**
-   * Executes multiple processes in parallel and throws an exception if the exit code is non-zero.
-   * Outputs (stdout/stderr) of the processes are sent to our stdout/stderr. Can also take an array
-   * of {@link ProcessInfo}, since arrays are compatible with the object type indexed by integers.
+   * Executes multiple processes in parallel and pipes their outputs (stdout/stderr) to the
+   * log/error level of this instance's {@link ConsoleLike}.
    *
-   * @param processMap A map linking process ids to {@link ProcessInfo} instances
-   * @returns A promise that resolves on success and rejects on error
+   * The "nonZeroExitCodeHandling" option of the given {@link ProcessInfo}s determines
+   * whether this method throws on a non-zero exit code. This option applies to each process
+   * _individually_, so in a single call some processes can ignore non-zero exit codes while
+   * others throw an error.
    *
-   *
-   * @example
-   * <caption>Printing node and npm version to the console</caption>
+   * **Example:** Printing node and npm version to the console:
    * ```
    * await execPipedParallel({
    *   nodeVersion: { command: "node", args: ["-v"] },
    *   npmVersion: { command: "npm", args: ["--version"] },
    * });
    * ```
+   *
+   * @param processMap A map of a caller-defined process ID to {@link ProcessInfo} for each
+   * process to execute. The given process IDs are used for console output and in the
+   * returned map of exit status infos.
+   *
+   * @returns A promise resolving to a map of the process ID (from `processMap`) to exit
+   * status info, once all processes have exited
    */
   async execPipedParallel<T extends { [id: string]: ProcessInfo }>(
     processMap: T
   ): Promise<{ [id in keyof T]: NodeExitInfo }>;
+
+  /**
+   * Executes multiple processes in parallel and pipes their outputs (stdout/stderr) to the
+   * log/error level of this instance's {@link ConsoleLike}.
+   *
+   * The "nonZeroExitCodeHandling" option of the given {@link ProcessInfo}s determines
+   * whether this method throws on a non-zero exit code. This option applies to each process
+   * _individually_, so in a single call some processes can ignore non-zero exit codes while
+   * others throw an error.
+   *
+   * **Example:** Printing node and npm version to the console:
+   * ```
+   * await execPipedParallel({
+   *   nodeVersion: { command: "node", args: ["-v"] },
+   *   npmVersion: { command: "npm", args: ["--version"] },
+   * });
+   * ```
+   *
+   * @param processList A list of one {@link ProcessInfo} for each process to execute.
+   * The indexes in this array are used for console output.
+   *
+   * @returns A promise resolving to a list of exit status infos, one for each process in
+   * the same order as `processList`, once all processes have exited
+   */
   async execPipedParallel(processList: ProcessInfo[]): Promise<NodeExitInfo[]>;
 
+  /** Implementation for the two overload signatures above. */
   async execPipedParallel(
     processMapOrList: ProcessInfo[] | { [id: string]: ProcessInfo }
   ): Promise<NodeExitInfo[] | { [id: string]: NodeExitInfo }> {
@@ -172,6 +227,26 @@ export class ProcessExecutor {
     return { exitCode, exitSignal };
   }
 
+  /**
+   * Executes a process attached to the TTY of this process (i.e. the caller). This means
+   * that all three of the process's streams (stdin, stdout, stderr) are directly attached
+   * to the streams the caller process uses.
+   *
+   * This way, the user can directly work with an interactive process even though it is
+   * launched by DevCmd.
+   *
+   * The "nonZeroExitCodeHandling" option of the given {@link ProcessInfo} determines
+   * whether this method throws on a non-zero exit code.
+   *
+   * **Example:** Open an interactive SSH session:
+   * ```
+   * await execInTty({ command: 'ssh', args: ['192.168.9.1'] });
+   * ```
+   *
+   * @param processInfo Information about the process to execute
+   *
+   * @returns A promise resolving to an object with exit status info once the process exits
+   */
   async execInTty(processInfo: ProcessInfo): Promise<NodeExitInfo> {
     this.printNotice(`Starting process: ${formatProcessInvocation(processInfo)} attached to TTY`);
     const options = processInfo.options ?? {};
@@ -207,6 +282,26 @@ export class ProcessExecutor {
     return { exitCode, exitSignal };
   }
 
+  /**
+   * Executes a process and collects its stdout and stderr streams into strings that are
+   * returned once the process exits.
+   *
+   * The "nonZeroExitCodeHandling" option of the given {@link ProcessInfo} determines
+   * whether this method throws on a non-zero exit code.
+   *
+   * **Example:** Get the commit ID of the Git commit that is currently checked out:
+   * ```
+   * const { stdout } = await execToString({ command: "git", args: ["rev-parse", "HEAD"] });
+   * const gitHash = stdout.trim();
+   * console.log(`Currently checked out: ${gitHash}`);
+   * ```
+   *
+   * @param processInfo Information about the process to execute
+   *
+   * @returns A promise resolving to a result object once the process exits. The result
+   * object contains all the stdout and stderr that the process emitted (separately) and
+   * process's exit status info.
+   */
   async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string } & NodeExitInfo> {
     this.printNotice(`Starting process: ${formatProcessInvocation(processInfo)} and capturing output`);
     const options = processInfo.options ?? {};
@@ -260,6 +355,8 @@ export class ProcessExecutor {
 }
 
 /**
+ * Information about a process's exit status as provided by Node.
+ *
  * See Node's documentation on the `exit` event of `ChildProcess`:
  * https://nodejs.org/docs/latest-v12.x/api/child_process.html#child_process_event_exit
  */
