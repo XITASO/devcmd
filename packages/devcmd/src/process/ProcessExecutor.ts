@@ -14,6 +14,18 @@ import { formatCommandArgs, formatCommandName, Styler } from "../utils/format_ut
  * */
 export type NonZeroExitCodeHandling = "printErrorAndThrow" | "printNoticeAndReturn";
 
+/** Options modifying the way the process is executed. */
+export interface ProcessInfoOptions {
+  /** Working directory for the process. Defaults to caller's current working directory. */
+  cwd?: string;
+  /** Dictionary of environment variables. Defaults to caller's environment.
+   * If specified, caller's environment is not automatically included, so caller
+   * needs to do this if desired. */
+  env?: NodeJS.ProcessEnv;
+  /** Specifies how to handle a non-zero exit code. */
+  nonZeroExitCodeHandling?: NonZeroExitCodeHandling;
+}
+
 /** Information describing how to execute a process. */
 export interface ProcessInfo {
   /** Command to execute, usually the executable name. */
@@ -21,16 +33,7 @@ export interface ProcessInfo {
   /** Arguments to pass to the command, if any. */
   args?: string[];
   /** Options modifying the way the process is executed. */
-  options?: {
-    /** Working directory for the process. Defaults to caller's current working directory. */
-    cwd?: string;
-    /** Dictionary of environment variables. Defaults to caller's environment.
-     * If specified, caller's environment is not automatically included, so caller
-     * needs to do this if desired. */
-    env?: NodeJS.ProcessEnv;
-    /** Specifies how to handle a non-zero exit code. */
-    nonZeroExitCodeHandling?: NonZeroExitCodeHandling;
-  };
+  options?: ProcessInfoOptions;
 }
 
 export type LogFunction = (message?: any, ...optionalParams: any[]) => void;
@@ -172,9 +175,7 @@ export class ProcessExecutor {
     const logger = new Logger(consoleLike.error);
 
     logger.notice(`Starting process: ${formatProcessInvocation(processInfo)}`);
-
-    const options = processInfo.options ?? {};
-    const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
+    const options = this.normalizeOptions(processInfo.options);
 
     const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
       cwd: options.cwd,
@@ -182,7 +183,7 @@ export class ProcessExecutor {
         // Pass kleur's color support down to the child process
         FORCE_COLOR: kleur$.enabled ? "1" : "0",
 
-        ...(options.env ?? process.env),
+        ...options.env,
       },
     });
 
@@ -195,7 +196,7 @@ export class ProcessExecutor {
     this.handleExitInfo(
       exitInfo,
       processInfo,
-      nonZeroExitCodeHandling,
+      options.nonZeroExitCodeHandling,
       () => formatNonZeroExitCodeMessage(processInfo, exitInfo.exitCode),
       logger
     );
@@ -225,20 +226,17 @@ export class ProcessExecutor {
    */
   async execInTty(processInfo: ProcessInfo): Promise<NodeExitInfo> {
     this.logger.notice(`Starting process: ${formatProcessInvocation(processInfo)} attached to TTY`);
-    const options = processInfo.options ?? {};
-    const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
+    const options = this.normalizeOptions(processInfo.options);
 
     const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
       cwd: options.cwd,
       stdio: "inherit",
-      env: {
-        ...(options.env ?? process.env),
-      },
+      env: options.env,
     });
 
     const exitInfo = await childProcessCompletion(childProcess);
 
-    this.handleExitInfo(exitInfo, processInfo, nonZeroExitCodeHandling, () =>
+    this.handleExitInfo(exitInfo, processInfo, options.nonZeroExitCodeHandling, () =>
       formatNonZeroExitCodeMessage(processInfo, exitInfo.exitCode)
     );
 
@@ -267,17 +265,14 @@ export class ProcessExecutor {
    */
   async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string } & NodeExitInfo> {
     this.logger.notice(`Starting process: ${formatProcessInvocation(processInfo)} and capturing output`);
-    const options = processInfo.options ?? {};
-    const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
+    const options = this.normalizeOptions(processInfo.options);
 
     let childStdout: string = "";
     let childStderr: string = "";
 
     const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
       cwd: options.cwd,
-      env: {
-        ...(options.env ?? process.env),
-      },
+      env: options.env,
     });
 
     const processCompletion = childProcessCompletion(childProcess);
@@ -292,7 +287,7 @@ export class ProcessExecutor {
       }),
     ]);
 
-    this.handleExitInfo(exitInfo, processInfo, nonZeroExitCodeHandling, () => {
+    this.handleExitInfo(exitInfo, processInfo, options.nonZeroExitCodeHandling, () => {
       const nonZeroExitCodeMessage = formatNonZeroExitCodeMessage(processInfo, exitInfo.exitCode);
       return `${nonZeroExitCodeMessage}\n\nSTDOUT WAS:\n${childStdout}\n\nSTDERR WAS:\n${childStderr}\n\n`;
     });
@@ -325,6 +320,14 @@ export class ProcessExecutor {
     } else {
       logger.notice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
     }
+  }
+
+  private normalizeOptions(options: ProcessInfoOptions | undefined): Required<ProcessInfoOptions> {
+    return {
+      cwd: options?.cwd ?? process.cwd(),
+      nonZeroExitCodeHandling: options?.nonZeroExitCodeHandling ?? "printErrorAndThrow",
+      env: { ...(options?.env ?? process.env) },
+    };
   }
 }
 
