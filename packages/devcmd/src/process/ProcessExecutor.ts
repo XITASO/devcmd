@@ -33,24 +33,15 @@ export interface ProcessInfo {
   };
 }
 
+export type LogFunction = (message?: any, ...optionalParams: any[]) => void;
+
 /**
  * An interface that describes the behavior of a target,
  * that can display log and error messages.
  */
 export interface ConsoleLike {
-  log(message?: any, ...optionalParams: any[]): void;
-  error(message?: any, ...optionalParams: any[]): void;
-}
-
-class SafeConsoleLike implements ConsoleLike {
-  constructor(private readonly consoleLike: ConsoleLike | undefined | null) {}
-
-  log(message?: any, ...optionalParams: any[]): void {
-    if (this.consoleLike) this.consoleLike.log(message, ...optionalParams);
-  }
-  error(message?: any, ...optionalParams: any[]): void {
-    if (this.consoleLike) this.consoleLike.error(message, ...optionalParams);
-  }
+  log: LogFunction;
+  error: LogFunction;
 }
 
 /**
@@ -59,9 +50,11 @@ class SafeConsoleLike implements ConsoleLike {
  */
 export class ProcessExecutor {
   private readonly consoleLike: ConsoleLike;
+  private readonly logger: Logger;
 
   constructor(consoleLike: ConsoleLike) {
     this.consoleLike = new SafeConsoleLike(consoleLike);
+    this.logger = new Logger(this.consoleLike.error.bind(this.consoleLike));
     this.execInTty = this.execInTty.bind(this);
     this.execPiped = this.execPiped.bind(this);
     this.execPipedParallel = this.execPipedParallel.bind(this);
@@ -155,7 +148,7 @@ export class ProcessExecutor {
     processMapOrList: ProcessInfo[] | { [id: string]: ProcessInfo }
   ): Promise<NodeExitInfo[] | { [id: string]: NodeExitInfo }> {
     const processEntries = Object.entries(processMapOrList);
-    this.printNotice(`Beginning parallel execution of ${processEntries.length} processes...`);
+    this.logger.notice(`Beginning parallel execution of ${processEntries.length} processes...`);
     let results: NodeExitInfo[];
     try {
       results = unwrapResults(
@@ -166,7 +159,7 @@ export class ProcessExecutor {
         ])
       );
     } finally {
-      this.printNotice("Finished parallel execution.");
+      this.logger.notice("Finished parallel execution.");
     }
 
     if (Array.isArray(processMapOrList)) return results;
@@ -174,20 +167,11 @@ export class ProcessExecutor {
     return Object.fromEntries(processEntries.map(([key], idx) => [key, results[idx]]));
   }
 
-  private printNotice(message?: any, ...optionalParams: any[]): void {
-    this.consoleLike.error(noticeStyled(message), ...optionalParams);
-  }
-
-  private printError(message?: any, ...optionalParams: any[]): void {
-    this.consoleLike.error(red(message), ...optionalParams);
-  }
-
   private async execPipedInternal(processInfo: ProcessInfo, logPrefix: string): Promise<NodeExitInfo> {
-    const withPrefix = (line: string) => `${logPrefix}${line}`;
-    const consoleLog = (line: string, ...params: any[]) => this.consoleLike.log(withPrefix(line), ...params);
-    const consoleError = (line: string, ...params: any[]) => this.consoleLike.error(withPrefix(line), ...params);
+    const consoleLike = new PrefixingConsoleLike(this.consoleLike, logPrefix);
+    const logger = new Logger(consoleLike.error);
 
-    consoleError(noticeStyled(`Starting process: ${formatProcessInvocation(processInfo)}`));
+    logger.notice(`Starting process: ${formatProcessInvocation(processInfo)}`);
 
     const options = processInfo.options ?? {};
     const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
@@ -202,29 +186,21 @@ export class ProcessExecutor {
       },
     });
 
-    const [{ exitCode, exitSignal }] = await Promise.all([
+    const [exitInfo] = await Promise.all([
       childProcessCompletion(childProcess),
-      logStream(childProcess.stdout, consoleLog),
-      logStream(childProcess.stderr, consoleError),
+      logStream(childProcess.stdout, consoleLike.log),
+      logStream(childProcess.stderr, consoleLike.error),
     ]);
 
-    if (exitCode !== 0) {
-      const message = formatNonZeroExitCodeMessage(processInfo, exitCode);
-      switch (nonZeroExitCodeHandling) {
-        case "printErrorAndThrow":
-          consoleError(red(message));
-          throw new Error(message);
-        case "printNoticeAndReturn":
-          consoleError(noticeStyled(message));
-          break;
-        default:
-          throw new Error(`Unknown value for option 'nonZeroExitCodeHandling': '${nonZeroExitCodeHandling}'`);
-      }
-    } else {
-      consoleError(noticeStyled(`Process ${formatProcessCommand(processInfo)} exited successfully.`));
-    }
+    this.handleExitInfo(
+      exitInfo,
+      processInfo,
+      nonZeroExitCodeHandling,
+      () => formatNonZeroExitCodeMessage(processInfo, exitInfo.exitCode),
+      logger
+    );
 
-    return { exitCode, exitSignal };
+    return exitInfo;
   }
 
   /**
@@ -248,7 +224,7 @@ export class ProcessExecutor {
    * @returns A promise resolving to an object with exit status info once the process exits
    */
   async execInTty(processInfo: ProcessInfo): Promise<NodeExitInfo> {
-    this.printNotice(`Starting process: ${formatProcessInvocation(processInfo)} attached to TTY`);
+    this.logger.notice(`Starting process: ${formatProcessInvocation(processInfo)} attached to TTY`);
     const options = processInfo.options ?? {};
     const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
 
@@ -260,26 +236,13 @@ export class ProcessExecutor {
       },
     });
 
-    const { exitCode, exitSignal } = await childProcessCompletion(childProcess);
+    const exitInfo = await childProcessCompletion(childProcess);
 
-    if (exitCode !== 0) {
-      const message = formatNonZeroExitCodeMessage(processInfo, exitCode);
+    this.handleExitInfo(exitInfo, processInfo, nonZeroExitCodeHandling, () =>
+      formatNonZeroExitCodeMessage(processInfo, exitInfo.exitCode)
+    );
 
-      switch (nonZeroExitCodeHandling) {
-        case "printErrorAndThrow":
-          this.printError(message);
-          throw new Error(message);
-        case "printNoticeAndReturn":
-          this.printNotice(message);
-          break;
-        default:
-          throw new Error(`Unknown value for option 'nonZeroExitCodeHandling': '${nonZeroExitCodeHandling}'`);
-      }
-    } else {
-      this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
-    }
-
-    return { exitCode, exitSignal };
+    return exitInfo;
   }
 
   /**
@@ -303,7 +266,7 @@ export class ProcessExecutor {
    * process's exit status info.
    */
   async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string } & NodeExitInfo> {
-    this.printNotice(`Starting process: ${formatProcessInvocation(processInfo)} and capturing output`);
+    this.logger.notice(`Starting process: ${formatProcessInvocation(processInfo)} and capturing output`);
     const options = processInfo.options ?? {};
     const nonZeroExitCodeHandling = options.nonZeroExitCodeHandling ?? "printErrorAndThrow";
 
@@ -319,7 +282,7 @@ export class ProcessExecutor {
 
     const processCompletion = childProcessCompletion(childProcess);
 
-    const [{ exitCode, exitSignal }] = await Promise.all([
+    const [exitInfo] = await Promise.all([
       processCompletion,
       logStream(childProcess.stdout, (line) => {
         childStdout += line + "\n";
@@ -329,28 +292,39 @@ export class ProcessExecutor {
       }),
     ]);
 
+    this.handleExitInfo(exitInfo, processInfo, nonZeroExitCodeHandling, () => {
+      const nonZeroExitCodeMessage = formatNonZeroExitCodeMessage(processInfo, exitInfo.exitCode);
+      return `${nonZeroExitCodeMessage}\n\nSTDOUT WAS:\n${childStdout}\n\nSTDERR WAS:\n${childStderr}\n\n`;
+    });
+
+    return { stdout: childStdout, stderr: childStderr, ...exitInfo };
+  }
+
+  private handleExitInfo(
+    exitInfo: NodeExitInfo,
+    processInfo: ProcessInfo,
+    nonZeroExitCodeHandling: NonZeroExitCodeHandling,
+    nonZeroExitCodeMessageCreator: () => string,
+    logger: Logger = this.logger
+  ) {
+    const { exitCode } = exitInfo;
+
     if (exitCode !== 0) {
-      const nonZeroExitCodeMessage = formatNonZeroExitCodeMessage(processInfo, exitCode);
-      const message =
-        `${nonZeroExitCodeMessage}\n\n` + //
-        `STDOUT WAS:\n${childStdout}\n\n` + //
-        `STDERR WAS:\n${childStderr}\n\n`;
+      const message = nonZeroExitCodeMessageCreator();
 
       switch (nonZeroExitCodeHandling) {
         case "printErrorAndThrow":
-          this.printError(message);
+          logger.error(message);
           throw new Error(message);
         case "printNoticeAndReturn":
-          this.printNotice(message);
+          logger.notice(message);
           break;
         default:
           throw new Error(`Unknown value for option 'nonZeroExitCodeHandling': '${nonZeroExitCodeHandling}'`);
       }
     } else {
-      this.printNotice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
+      logger.notice(`Process ${formatProcessCommand(processInfo)} exited successfully.`);
     }
-
-    return { stdout: childStdout, stderr: childStderr, exitCode, exitSignal };
   }
 }
 
@@ -465,4 +439,47 @@ function noticeStyled(s: string): string {
 
 function noticeHighlightStyled(s: string): string {
   return reset(dim(bold(s)));
+}
+
+class Logger {
+  constructor(private readonly logFunction: LogFunction) {}
+
+  notice(message?: any, ...optionalParams: any[]): void {
+    this.logFunction(noticeStyled(message), ...optionalParams);
+  }
+  error(message?: any, ...optionalParams: any[]): void {
+    this.logFunction(red(message), ...optionalParams);
+  }
+}
+
+class SafeConsoleLike implements ConsoleLike {
+  constructor(private readonly consoleLike: ConsoleLike | undefined | null) {
+    this.log = this.log.bind(this);
+    this.error = this.error.bind(this);
+  }
+
+  log(message?: any, ...optionalParams: any[]): void {
+    if (this.consoleLike) this.consoleLike.log(message, ...optionalParams);
+  }
+  error(message?: any, ...optionalParams: any[]): void {
+    if (this.consoleLike) this.consoleLike.error(message, ...optionalParams);
+  }
+}
+
+class PrefixingConsoleLike implements ConsoleLike {
+  constructor(private readonly innerConsoleLike: ConsoleLike, private readonly logPrefix: string) {
+    this.log = this.log.bind(this);
+    this.error = this.error.bind(this);
+  }
+
+  log(message?: any, ...optionalParams: any[]): void {
+    this.innerConsoleLike.log(this.withPrefix(message), ...optionalParams);
+  }
+  error(message?: any, ...optionalParams: any[]): void {
+    this.innerConsoleLike.error(this.withPrefix(message), ...optionalParams);
+  }
+
+  private withPrefix(line: string) {
+    return `${this.logPrefix}${line}`;
+  }
 }
