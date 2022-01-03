@@ -8,9 +8,14 @@ const ansiFormat = `(?:\\x1b\\[\\d+m)`;
 describe("ProcessExecutor", () => {
   describe("execInTty()", () => {
     describe("with default options", () => {
-      test("process that successfully exits works (with console)", async () => {
-        const execInTty = new ProcessExecutor(nullConsole).execInTty;
+      test("process that successfully exits works (with console, prints notices)", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execInTty = new ProcessExecutor(capturingConsole).execInTty;
         await execInTty({ command: "node", args: ["--version"] });
+        const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines);
+        expect(consoleErrLines).toHaveLength(2);
+        expect(stripAnsiColorSequences(consoleErrLines[0])).toMatch(/^Starting process/);
+        expect(stripAnsiColorSequences(consoleErrLines[1])).toMatch(/^Process "node" exited successfully/);
       });
 
       test("process that successfully exits works (with no console)", async () => {
@@ -64,13 +69,46 @@ describe("ProcessExecutor", () => {
         );
       });
     });
+
+    describe("with option suppressNotices=true", () => {
+      test("process that successfully exits works (and prints no notices)", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execInTty = new ProcessExecutor(capturingConsole).execInTty;
+        await execInTty({
+          command: "node",
+          args: ["--version"],
+          options: { suppressNotices: true },
+        });
+        expect(capturingConsole.errorLines).toHaveLength(0);
+      });
+
+      test("failing executable prints and throws", async () => {
+        expect.assertions(3);
+        const capturingConsole = new CapturingConsole();
+        const execInTty = new ProcessExecutor(capturingConsole).execInTty;
+        const execPromise = execInTty({
+          command: "node",
+          args: ["-e", "process.exit(2)"],
+          options: { suppressNotices: true },
+        });
+        await expect(execPromise).rejects.toThrowError("exited with status code 2");
+        const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines);
+        expect(consoleErrLines).toHaveLength(1);
+        expect(stripAnsiColorSequences(consoleErrLines[0])).toMatch(/^Process "node" exited with status code 2/);
+      });
+    });
   });
 
   describe("execPiped()", () => {
     describe("with default options", () => {
-      test("process that successfully exits works (with console)", async () => {
-        const execPiped = new ProcessExecutor(nullConsole).execPiped;
+      test("process that successfully exits works (with console, prints notices)", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execPiped = new ProcessExecutor(capturingConsole).execPiped;
         await execPiped({ command: "node", args: ["--version"] });
+        const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines);
+        expect(consoleErrLines).toHaveLength(2);
+        expect(stripAnsiColorSequences(consoleErrLines[0])).toMatch(/^Starting process/);
+        expect(stripAnsiColorSequences(consoleErrLines[1])).toMatch(/^Process "node" exited successfully/);
       });
 
       test("process that successfully exits works (with no console)", async () => {
@@ -127,6 +165,34 @@ describe("ProcessExecutor", () => {
       });
     });
 
+    describe("with option suppressNotices=true", () => {
+      test("process that successfully exits works (and prints no notices)", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execPiped = new ProcessExecutor(capturingConsole).execPiped;
+        await execPiped({
+          command: "node",
+          args: ["--version"],
+          options: { suppressNotices: true },
+        });
+        expect(capturingConsole.errorLines).toHaveLength(0);
+      });
+
+      test("failing executable prints and throws", async () => {
+        expect.assertions(3);
+        const capturingConsole = new CapturingConsole();
+        const execPiped = new ProcessExecutor(capturingConsole).execPiped;
+        const execPromise = execPiped({
+          command: "node",
+          args: ["-e", "process.exit(2)"],
+          options: { suppressNotices: true },
+        });
+        await expect(execPromise).rejects.toThrowError("exited with status code 2");
+        const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines);
+        expect(consoleErrLines).toHaveLength(1);
+        expect(stripAnsiColorSequences(consoleErrLines[0])).toMatch(/^Process "node" exited with status code 2/);
+      });
+    });
+
     test("setting 'cwd' option changes process's CWD", async () => {
       const capturingConsole = new CapturingConsole();
       const execPiped = new ProcessExecutor(capturingConsole).execPiped;
@@ -147,12 +213,19 @@ describe("ProcessExecutor", () => {
 
   describe("execPipedParallel()", () => {
     describe("with default options", () => {
-      test("succeeding processes by name works (with console)", async () => {
-        const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
+      test("succeeding processes by name works (with console, prints notices)", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execPipedParallel = new ProcessExecutor(capturingConsole).execPipedParallel;
         await execPipedParallel({
           node: { command: "node", args: ["--version"] },
           npm: { command: withCmdOnWin("npm"), args: ["--version"] },
         });
+        const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines).map(
+          stripAnsiColorSequences
+        );
+        expect(consoleErrLines).toHaveLength(6);
+        expect(consoleErrLines.filter((s) => s.includes("Starting process"))).toHaveLength(2);
+        expect(consoleErrLines.filter((s) => s.includes(`exited successfully`))).toHaveLength(2);
       });
 
       test("succeeding processes by name works (with no console)", async () => {
@@ -180,7 +253,7 @@ describe("ProcessExecutor", () => {
       });
 
       test("single failing process prints and throws", async () => {
-        expect.assertions(4);
+        expect.assertions(3);
         const capturingConsole = new CapturingConsole();
         const execPipedParallel = new ProcessExecutor(capturingConsole).execPipedParallel;
         const execPromise = execPipedParallel({
@@ -188,16 +261,14 @@ describe("ProcessExecutor", () => {
           npm: { command: withCmdOnWin("npm"), args: ["--version"] },
         });
         await expect(execPromise).rejects.toThrowError("exited with status code 2");
-        expect(capturingConsole.errorLines).toHaveLength(6);
-        const errorLine = capturingConsole.errorLines.filter(
-          (l) => isString(l.message) && l.message.includes("exited with status code")
+        const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines).map(
+          stripAnsiColorSequences
+        );
+        expect(consoleErrLines).toHaveLength(6);
+        const errorLine = consoleErrLines.filter((l) =>
+          l.startsWith(`<node> Process "node" exited with status code 2`)
         );
         expect(errorLine).toHaveLength(1);
-        expect(errorLine[0].message).toMatch(
-          new RegExp(
-            `^${ansiFormat}?<node> ${ansiFormat}?${ansiFormat}?Process "${ansiFormat}?node${ansiFormat}?" exited with status code 2`
-          )
-        );
       });
 
       test("multiple failing processes throws", async () => {
@@ -261,15 +332,53 @@ describe("ProcessExecutor", () => {
         expect(errorLine).toHaveLength(2);
       });
     });
+
+    describe("with option suppressNotices=true on call", () => {
+      test("succeeding processes by name works (and prints no notices)", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execPipedParallel = new ProcessExecutor(capturingConsole).execPipedParallel;
+        await execPipedParallel(
+          {
+            node: { command: "node", args: ["--version"] },
+            npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+          },
+          { suppressNotices: true }
+        );
+        const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines).map(
+          stripAnsiColorSequences
+        );
+        expect(consoleErrLines).toHaveLength(0);
+      });
+    });
+    describe("with option suppressNotices=true on single process", () => {
+      test("succeeding processes by name works (and prints other notices)", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execPipedParallel = new ProcessExecutor(capturingConsole).execPipedParallel;
+        await execPipedParallel({
+          node: { command: "node", args: ["--version"], options: { suppressNotices: true } },
+          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+        });
+        const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines).map(
+          stripAnsiColorSequences
+        );
+        expect(consoleErrLines).toHaveLength(4);
+        expect(consoleErrLines.filter((s) => s.includes("node"))).toHaveLength(0);
+      });
+    });
   });
 
   describe("execToString()", () => {
     describe("with default options", () => {
-      test("process that successfully exits works (with console)", async () => {
-        const execToString = new ProcessExecutor(nullConsole).execToString;
+      test("process that successfully exits works (with console, prints notices)", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execToString = new ProcessExecutor(capturingConsole).execToString;
         const { stdout, stderr } = await execToString({ command: "node", args: ["--version"] });
         expect(stderr).toBe("");
         expect(stdout).toMatch(/v\d+\.\d+\.\d+/);
+        const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines);
+        expect(consoleErrLines).toHaveLength(2);
+        expect(stripAnsiColorSequences(consoleErrLines[0])).toMatch(/^Starting process/);
+        expect(stripAnsiColorSequences(consoleErrLines[1])).toMatch(/^Process "node" exited successfully/);
       });
 
       test("process that successfully exits works (with no console)", async () => {
@@ -327,6 +436,36 @@ describe("ProcessExecutor", () => {
       });
     });
 
+    describe("with option suppressNotices=true", () => {
+      test("process that successfully exits works (and prints no notices)", async () => {
+        const capturingConsole = new CapturingConsole();
+        const execToString = new ProcessExecutor(capturingConsole).execToString;
+        const { stdout, stderr } = await execToString({
+          command: "node",
+          args: ["--version"],
+          options: { suppressNotices: true },
+        });
+        expect(stderr).toBe("");
+        expect(stdout).toMatch(/v\d+\.\d+\.\d+/);
+        expect(capturingConsole.errorLines).toHaveLength(0);
+      });
+
+      test("failing executable prints and throws", async () => {
+        expect.assertions(3);
+        const capturingConsole = new CapturingConsole();
+        const execToString = new ProcessExecutor(capturingConsole).execToString;
+        const execPromise = execToString({
+          command: "node",
+          args: ["-e", "process.exit(2)"],
+          options: { suppressNotices: true },
+        });
+        await expect(execPromise).rejects.toThrowError("exited with status code 2");
+        const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines);
+        expect(consoleErrLines).toHaveLength(1);
+        expect(stripAnsiColorSequences(consoleErrLines[0])).toMatch(/^Process "node" exited with status code 2/);
+      });
+    });
+
     test("setting 'cwd' option changes process's CWD", async () => {
       const execToString = new ProcessExecutor(nullConsole).execToString;
       const cwd = process.cwd();
@@ -368,6 +507,10 @@ class CapturingConsole implements ConsoleLike {
   error(message?: any, ...optionalParams: any[]): void {
     this._errorLines.push({ message, optionalParams });
   }
+
+  static extractMessageStrings(logLines: readonly LogLine[]): string[] {
+    return logLines.map(({ message }) => message?.toString() ?? "");
+  }
 }
 
 function isWindows(): boolean {
@@ -376,4 +519,8 @@ function isWindows(): boolean {
 
 function withCmdOnWin(baseCmd: string): string {
   return isWindows() ? `${baseCmd}.cmd` : baseCmd;
+}
+
+function stripAnsiColorSequences(s: string): string {
+  return s.replace(new RegExp(ansiFormat, "g"), "");
 }
