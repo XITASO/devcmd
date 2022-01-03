@@ -218,7 +218,7 @@ describe("ProcessExecutor", () => {
         const execPipedParallel = new ProcessExecutor(capturingConsole).execPipedParallel;
         await execPipedParallel({
           node: { command: "node", args: ["--version"] },
-          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+          node2: { command: "node", args: ["-e", "console.log('The other node process');"] },
         });
         const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines).map(
           stripAnsiColorSequences
@@ -232,7 +232,7 @@ describe("ProcessExecutor", () => {
         const execPipedParallel = new ProcessExecutor(undefined as any).execPipedParallel;
         await execPipedParallel({
           node: { command: "node", args: ["--version"] },
-          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+          node2: { command: "node", args: ["-e", "console.log('The other node process');"] },
         });
       });
 
@@ -240,7 +240,7 @@ describe("ProcessExecutor", () => {
         const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
         await execPipedParallel({
           1: { command: "node", args: ["--version"] },
-          2: { command: withCmdOnWin("npm"), args: ["--version"] },
+          2: { command: "node", args: ["-e", "console.log('The other node process');"] },
         });
       });
 
@@ -248,7 +248,7 @@ describe("ProcessExecutor", () => {
         const execPipedParallel = new ProcessExecutor(nullConsole).execPipedParallel;
         await execPipedParallel([
           { command: "node", args: ["--version"] },
-          { command: withCmdOnWin("npm"), args: ["--version"] },
+          { command: "node", args: ["-e", "console.log('The other node process');"] },
         ]);
       });
 
@@ -258,7 +258,7 @@ describe("ProcessExecutor", () => {
         const execPipedParallel = new ProcessExecutor(capturingConsole).execPipedParallel;
         const execPromise = execPipedParallel({
           node: { command: "node", args: ["-e", "process.exit(2)"] },
-          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+          node2: { command: "node", args: ["-e", "console.log('The other node process');"] },
         });
         await expect(execPromise).rejects.toThrowError("exited with status code 2");
         const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines).map(
@@ -293,7 +293,7 @@ describe("ProcessExecutor", () => {
             args: ["-e", "process.exit(2)"],
             options: { nonZeroExitCodeHandling: "printNoticeAndReturn" },
           },
-          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+          node2: { command: "node", args: ["-e", "console.log('The other node process');"] },
         });
         expect(results.node.exitCode).toBe(2);
         expect(capturingConsole.errorLines).toHaveLength(6);
@@ -340,7 +340,7 @@ describe("ProcessExecutor", () => {
         await execPipedParallel(
           {
             node: { command: "node", args: ["--version"] },
-            npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+            node2: { command: "node", args: ["-e", "console.log('The other node process');"] },
           },
           { suppressNotices: true }
         );
@@ -355,14 +355,14 @@ describe("ProcessExecutor", () => {
         const capturingConsole = new CapturingConsole();
         const execPipedParallel = new ProcessExecutor(capturingConsole).execPipedParallel;
         await execPipedParallel({
-          node: { command: "node", args: ["--version"], options: { suppressNotices: true } },
-          npm: { command: withCmdOnWin("npm"), args: ["--version"] },
+          node1: { command: "node", args: ["--version"], options: { suppressNotices: true } },
+          node2: { command: "node", args: ["-e", "console.log('The other node process');"] },
         });
         const consoleErrLines = CapturingConsole.extractMessageStrings(capturingConsole.errorLines).map(
           stripAnsiColorSequences
         );
         expect(consoleErrLines).toHaveLength(4);
-        expect(consoleErrLines.filter((s) => s.includes("node"))).toHaveLength(0);
+        expect(consoleErrLines.filter((s) => s.includes("node1"))).toHaveLength(0);
       });
     });
   });
@@ -511,14 +511,6 @@ class CapturingConsole implements ConsoleLike {
   static extractMessageStrings(logLines: readonly LogLine[]): string[] {
     return logLines.map(({ message }) => message?.toString() ?? "");
   }
-}
-
-function isWindows(): boolean {
-  return process.platform === "win32";
-}
-
-function withCmdOnWin(baseCmd: string): string {
-  return isWindows() ? `${baseCmd}.cmd` : baseCmd;
 }
 
 function stripAnsiColorSequences(s: string): string {
