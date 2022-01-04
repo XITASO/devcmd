@@ -1,60 +1,25 @@
-import { execPiped, execToString } from "devcmd";
+import { execToString } from "devcmd";
 import { red } from "kleur/colors";
-import { DOCKER_COMMAND } from "../utils/commands";
+import { inShellInContainer } from "../utils/docker-utils";
 import { NpmPackResult } from "../utils/npm-utils";
 import { multiplePackageJsonsExampleDir } from "../utils/paths";
-import { installDevcmdCliGlobally, LOCAL_REGISTRY_URL, TestFunction, TestGroup } from "./integration-test-harness";
+import { installDevcmdCliGlobally, setupExampleProject, TestFunction, TestGroup } from "./integration-test-harness";
 
 export function createMultiplePackageJsonsExampleTestGroup(): TestGroup {
   const setup: TestFunction = async (containerName: string, devcmdCliInfo: NpmPackResult) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
-
-    await execPiped({
-      command: DOCKER_COMMAND,
-      args: ["exec", containerName, "sh", "-c", "mkdir /tmp/devcmd_test"],
-    });
-
-    await execPiped({
-      command: DOCKER_COMMAND,
-      args: ["cp", multiplePackageJsonsExampleDir, `${containerName}:/tmp/devcmd_test`],
-    });
-
-    await execPiped({
-      command: DOCKER_COMMAND,
-      args: ["exec", "--user", "root", containerName, "chown", "-R", "verdaccio", "/tmp/devcmd_test"],
-    });
-
-    await execPiped({
-      command: DOCKER_COMMAND,
-      args: [
-        "exec",
-        containerName,
-        "sh",
-        "-c",
-        ["cd /tmp/devcmd_test/multiple-package-jsons/dev_cmds", `npm --registry ${LOCAL_REGISTRY_URL} install`].join(
-          " && "
-        ),
-      ],
-    });
-
+    await setupExampleProject(containerName, multiplePackageJsonsExampleDir, "multiple-package-jsons/dev_cmds");
     return "success";
   };
 
   const runExampleCmd: TestFunction = async (containerName: string) => {
-    const { stdout, stderr } = await execToString({
-      command: DOCKER_COMMAND,
-      args: [
-        "exec",
-        containerName,
-        "sh",
-        "-c",
-        [
-          "export PATH=~/.npm-global/bin:$PATH",
-          "cd /tmp/devcmd_test/multiple-package-jsons",
-          `devcmd example_cmd`,
-        ].join(" && "),
-      ],
-    });
+    const { stdout, stderr } = await execToString(
+      inShellInContainer(containerName, [
+        "export PATH=~/.npm-global/bin:$PATH",
+        "cd /tmp/devcmd_test/multiple-package-jsons",
+        `devcmd example_cmd`,
+      ])
+    );
 
     if (!stdout.includes("Example command for multiple-package-jsons example")) {
       console.log(red("multiple-package-jsons didn't print expected output."));

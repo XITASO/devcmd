@@ -14,6 +14,7 @@ import {
 } from "./integration-tests/integration-test-harness";
 import { delay } from "./utils/delay";
 import { integrationTestGroupFactories } from "./integration-tests/integration-test-group-factories";
+import { inShellInContainer } from "./utils/docker-utils";
 
 async function main(): Promise<void> {
   await execPiped({ command: DEVCMD_COMMAND, args: ["build-all"] });
@@ -69,21 +70,14 @@ async function createIntegrationTestBaseImage(
 
   await delay(2000);
 
-  await execPiped({
-    command: DOCKER_COMMAND,
-    args: [
-      "exec",
-      VERDACCIO_CONTAINER_NAME,
-      "sh",
-      "-c",
-      [
-        "cd /devcmd_install",
-        `npx npm-auth-to-token -u test -p test -e test@test.com -r ${LOCAL_REGISTRY_URL}`,
-        `npm --registry ${LOCAL_REGISTRY_URL} publish ${packedDevcmdCli.packedFileName}`,
-        `npm --registry ${LOCAL_REGISTRY_URL} publish ${packedDevcmd.packedFileName}`,
-      ].join(" && "),
-    ],
-  });
+  await execPiped(
+    inShellInContainer(VERDACCIO_CONTAINER_NAME, [
+      "cd /devcmd_install",
+      `npx npm-auth-to-token -u test -p test -e test@test.com -r ${LOCAL_REGISTRY_URL}`,
+      `npm --registry ${LOCAL_REGISTRY_URL} publish ${packedDevcmdCli.packedFileName}`,
+      `npm --registry ${LOCAL_REGISTRY_URL} publish ${packedDevcmd.packedFileName}`,
+    ])
+  );
 
   await execPiped({ command: DOCKER_COMMAND, args: ["stop", VERDACCIO_CONTAINER_NAME] });
 

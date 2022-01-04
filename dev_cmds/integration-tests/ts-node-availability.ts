@@ -1,68 +1,26 @@
 import { execPiped, execToString } from "devcmd";
 import { red } from "kleur/colors";
-import { DOCKER_COMMAND } from "../utils/commands";
+import { inShellInContainer } from "../utils/docker-utils";
 import { NpmPackResult } from "../utils/npm-utils";
 import { singlePackageJsonExampleDir } from "../utils/paths";
-import { TestGroup, TestFunction, installDevcmdCliGlobally, LOCAL_REGISTRY_URL } from "./integration-test-harness";
+import { TestGroup, TestFunction, installDevcmdCliGlobally, setupExampleProject } from "./integration-test-harness";
 
 export function createTsNodeAvailabilityTestGroup(): TestGroup {
   const setup: TestFunction = async (containerName: string, devcmdCliInfo: NpmPackResult) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
-
-    await execPiped({
-      command: DOCKER_COMMAND,
-      args: ["exec", containerName, "sh", "-c", "mkdir /tmp/devcmd_test"],
-    });
-
-    await execPiped({
-      command: DOCKER_COMMAND,
-      args: ["cp", singlePackageJsonExampleDir, `${containerName}:/tmp/devcmd_test`],
-    });
-
-    await execPiped({
-      command: DOCKER_COMMAND,
-      args: ["exec", "--user", "root", containerName, "chown", "-R", "verdaccio", "/tmp/devcmd_test"],
-    });
-
-    await execPiped({
-      command: DOCKER_COMMAND,
-      args: [
-        "exec",
-        containerName,
-        "sh",
-        "-c",
-        ["cd /tmp/devcmd_test/single-package-json", `npm --registry ${LOCAL_REGISTRY_URL} install`].join(" && "),
-      ],
-    });
-
+    await setupExampleProject(containerName, singlePackageJsonExampleDir, "single-package-json");
     return "success";
   };
 
   const runFailsWithError: TestFunction = async (containerName: string) => {
-    const exampleCmdCommandLine = `npx devcmd example_cmd`;
-
     try {
-      await execPiped({
-        command: DOCKER_COMMAND,
-        args: [
-          "exec",
-          containerName,
-          "sh",
-          "-c",
-          ["cd /tmp/devcmd_test/single-package-json", `npm uninstall ts-node`].join(" && "),
-        ],
-      });
+      await execPiped(
+        inShellInContainer(containerName, ["cd /tmp/devcmd_test/single-package-json", `npm uninstall ts-node`])
+      );
 
-      await execToString({
-        command: DOCKER_COMMAND,
-        args: [
-          "exec",
-          containerName,
-          "sh",
-          "-c",
-          ["cd /tmp/devcmd_test/single-package-json", exampleCmdCommandLine].join(" && "),
-        ],
-      });
+      await execToString(
+        inShellInContainer(containerName, ["cd /tmp/devcmd_test/single-package-json", `npx devcmd example_cmd`])
+      );
 
       console.log(red("Failure: Command completed successfully but should have errored."));
     } catch (e) {

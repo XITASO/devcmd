@@ -1,54 +1,21 @@
 import { execToString } from "devcmd";
 import { red } from "kleur/colors";
-import { DOCKER_COMMAND } from "../utils/commands";
+import { inShellInContainer } from "../utils/docker-utils";
 import { NpmPackResult } from "../utils/npm-utils";
 import { singlePackageJsonExampleDir } from "../utils/paths";
-import { TestGroup, TestFunction, installDevcmdCliGlobally, LOCAL_REGISTRY_URL } from "./integration-test-harness";
+import { TestGroup, TestFunction, installDevcmdCliGlobally, setupExampleProject } from "./integration-test-harness";
 
 export function createReservedCommandsTestGroup(): TestGroup {
   const setup: TestFunction = async (containerName: string, devcmdCliInfo: NpmPackResult) => {
     await installDevcmdCliGlobally(containerName, devcmdCliInfo);
-
-    await execToString({
-      command: DOCKER_COMMAND,
-      args: ["exec", containerName, "sh", "-c", "mkdir /tmp/devcmd_test"],
-    });
-
-    await execToString({
-      command: DOCKER_COMMAND,
-      args: ["cp", singlePackageJsonExampleDir, `${containerName}:/tmp/devcmd_test`],
-    });
-
-    await execToString({
-      command: DOCKER_COMMAND,
-      args: ["exec", "--user", "root", containerName, "chown", "-R", "verdaccio", "/tmp/devcmd_test"],
-    });
-
-    await execToString({
-      command: DOCKER_COMMAND,
-      args: [
-        "exec",
-        containerName,
-        "sh",
-        "-c",
-        ["cd /tmp/devcmd_test/single-package-json", `npm --registry ${LOCAL_REGISTRY_URL} install`].join(" && "),
-      ],
-    });
-
+    await setupExampleProject(containerName, singlePackageJsonExampleDir, "single-package-json");
     return "success";
   };
 
   const listLogsAvailableCommands: TestFunction = async (containerName: string) => {
-    const { stdout, stderr } = await execToString({
-      command: DOCKER_COMMAND,
-      args: [
-        "exec",
-        containerName,
-        "sh",
-        "-c",
-        ["cd /tmp/devcmd_test/single-package-json", `npx devcmd --list`].join(" && "),
-      ],
-    });
+    const { stdout } = await execToString(
+      inShellInContainer(containerName, ["cd /tmp/devcmd_test/single-package-json", `npx devcmd --list`])
+    );
 
     const expectedCmds = ["example_cmd", "fails_with_error", "parameter_example_cmd"];
 
@@ -67,16 +34,9 @@ export function createReservedCommandsTestGroup(): TestGroup {
   };
 
   const helpLogsHelpInformation: TestFunction = async (containerName: string) => {
-    const { stdout, stderr } = await execToString({
-      command: DOCKER_COMMAND,
-      args: [
-        "exec",
-        containerName,
-        "sh",
-        "-c",
-        ["cd /tmp/devcmd_test/single-package-json", `npx devcmd --help`].join(" && "),
-      ],
-    });
+    const { stdout, stderr } = await execToString(
+      inShellInContainer(containerName, ["cd /tmp/devcmd_test/single-package-json", `npx devcmd --help`])
+    );
 
     const part1OfHelpOutput = "Usage: devcmd <task>";
     const part2OfHelpOutput = "Use devcmd --list to show available tasks.";
