@@ -104,31 +104,56 @@ const scriptRunners = [
 ];
 
 async function findAndRunScript(devCmdsDir: string, commandName: string, commandArgs: string[]): Promise<void> {
-  for (const { extension, launcher } of scriptRunners) {
-    const scriptFilepath = path.join(devCmdsDir, `${commandName}.${extension}`);
+  const scriptFileCandidates: string[] = [];
+  const commandContainsExtensionExactMatch = scriptRunners.find(({ extension }) =>
+    commandName.endsWith(`.${extension}`)
+  );
+  if (!!commandContainsExtensionExactMatch) {
+    const { extension, launcher } = commandContainsExtensionExactMatch;
+    const scriptFilename = commandName;
+    scriptFileCandidates.push(scriptFilename);
+    const scriptFilepath = path.join(devCmdsDir, scriptFilename);
 
-    if (await isFile(scriptFilepath)) {
-      if (extension === "ts" && !(await checkPackageAvailable(launcher, devCmdsDir))) {
-        throw new Error(`No script runner for TypeScript devcmds found. Did you forget to install ${bold(launcher)}?`);
-      }
-
-      // TODO: use spawn or so instead
-      const { status } = spawnSync(withCmdOnWin(launcher), [scriptFilepath, ...commandArgs], {
-        stdio: "inherit",
-        cwd: devCmdsDir,
-      });
-
-      if (status !== null && status != 0) throw new Error(`Process failed with exit code ${status}`);
-
-      return;
-    }
+    if (await tryRunScript(devCmdsDir, scriptFilepath, commandArgs, extension, launcher)) return;
   }
 
-  const scriptFileCandidates = scriptRunners.map(({ extension }) => `${commandName}.${extension}`);
+  for (const { extension, launcher } of scriptRunners) {
+    const scriptFilename = `${commandName}.${extension}`;
+    scriptFileCandidates.push(scriptFilename);
+    const scriptFilepath = path.join(devCmdsDir, scriptFilename);
+
+    if (await tryRunScript(devCmdsDir, scriptFilepath, commandArgs, extension, launcher)) return;
+  }
+
   const message = `No script file found for command '${commandName}'.
     ${devCmdsDirName} dir path: ${devCmdsDir}
     Script files tried: ${scriptFileCandidates.join(", ")}
 
     Use ${green("devcmd --list")} to show available tasks.`;
   throw new Error(message);
+}
+
+async function tryRunScript(
+  devCmdsDir: string,
+  scriptFilepath: string,
+  commandArgs: string[],
+  extension: string,
+  launcher: string
+): Promise<boolean> {
+  if (await isFile(scriptFilepath)) {
+    if (extension === "ts" && !(await checkPackageAvailable(launcher, devCmdsDir))) {
+      throw new Error(`No script runner for TypeScript devcmds found. Did you forget to install ${bold(launcher)}?`);
+    }
+
+    // TODO: use spawn or so instead
+    const { status } = spawnSync(withCmdOnWin(launcher), [scriptFilepath, ...commandArgs], {
+      stdio: "inherit",
+      cwd: devCmdsDir,
+    });
+
+    if (status !== null && status != 0) throw new Error(`Process failed with exit code ${status}`);
+
+    return true;
+  }
+  return false;
 }
