@@ -25,17 +25,18 @@ export interface ProcessInfoOptions {
   /** Specifies how to handle a non-zero exit code. Default is `"printErrorAndThrow"`. */
   nonZeroExitCodeHandling?: NonZeroExitCodeHandling;
   /** If true, DevCmd does not print notices about starting and finishing process
-   *  execution. Default is false.*/
+   *  execution. Default is false. */
   suppressNotices?: boolean;
 }
 
 export interface ExecPipedParallelOptions {
   /** If true, DevCmd does not print notices about starting and finishing process
-   *  execution. In this case, this option is applied to all ProcessInfos
-   *  that are passed if it is true.
+   *  execution.
    *  If false (default), the notices for beginning and ending the parallel
-   *  execution are printed, but for the individual processes the respective
-   *  ProcessInfo's options are applied. */
+   *  execution are printed.
+   *  Individual ProcessInfo items can specify their own `suppressNotices` option,
+   *  which is preferred if present. In any ProcessInfo where the option is absent,
+   *  this value is applied as a fallback. */
   suppressNotices?: boolean;
 }
 
@@ -171,7 +172,7 @@ export class ProcessExecutor {
     let processEntries = Object.entries(processMapOrList);
     if (suppressNotices) {
       processEntries = processEntries.map(([k, processInfo]) => {
-        const newProcessInfo = { ...processInfo, options: { ...processInfo.options, suppressNotices } };
+        const newProcessInfo = { ...processInfo, options: { suppressNotices, ...processInfo.options } };
         return [k, newProcessInfo];
       });
     }
