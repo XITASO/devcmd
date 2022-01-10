@@ -22,8 +22,22 @@ export interface ProcessInfoOptions {
    * If specified, caller's environment is not automatically included, so caller
    * needs to do this if desired. */
   env?: NodeJS.ProcessEnv;
-  /** Specifies how to handle a non-zero exit code. */
+  /** Specifies how to handle a non-zero exit code. Default is `"printErrorAndThrow"`. */
   nonZeroExitCodeHandling?: NonZeroExitCodeHandling;
+  /** If true, DevCmd does not print notices about starting and finishing process
+   *  execution. Default is false. */
+  suppressNotices?: boolean;
+}
+
+export interface ExecPipedParallelOptions {
+  /** If true, DevCmd does not print notices about starting and finishing process
+   *  execution.
+   *  If false (default), the notices for beginning and ending the parallel
+   *  execution are printed.
+   *  Individual ProcessInfo items can specify their own `suppressNotices` option,
+   *  which is preferred if present. In any ProcessInfo where the option is absent,
+   *  this value is applied as a fallback. */
+  suppressNotices?: boolean;
 }
 
 /** Information describing how to execute a process. */
@@ -53,11 +67,11 @@ export interface ConsoleLike {
  */
 export class ProcessExecutor {
   private readonly consoleLike: ConsoleLike;
-  private readonly logger: Logger;
+  private readonly logger: StylingLogger;
 
   constructor(consoleLike: ConsoleLike) {
     this.consoleLike = new SafeConsoleLike(consoleLike);
-    this.logger = new Logger(this.consoleLike.error.bind(this.consoleLike));
+    this.logger = new StylingLogger(this.consoleLike.error.bind(this.consoleLike));
     this.execInTty = this.execInTty.bind(this);
     this.execPiped = this.execPiped.bind(this);
     this.execPipedParallel = this.execPipedParallel.bind(this);
@@ -118,7 +132,8 @@ export class ProcessExecutor {
    * status info, once all processes have exited
    */
   async execPipedParallel<T extends { [id: string]: ProcessInfo }>(
-    processMap: T
+    processMap: T,
+    options?: ExecPipedParallelOptions
   ): Promise<{ [id in keyof T]: NodeExitInfo }>;
 
   /**
@@ -144,14 +159,25 @@ export class ProcessExecutor {
    * @returns A promise resolving to a list of exit status infos, one for each process in
    * the same order as `processList`, once all processes have exited
    */
-  async execPipedParallel(processList: ProcessInfo[]): Promise<NodeExitInfo[]>;
+  async execPipedParallel(processList: ProcessInfo[], options?: ExecPipedParallelOptions): Promise<NodeExitInfo[]>;
 
   /** Implementation for the two overload signatures above. */
   async execPipedParallel(
-    processMapOrList: ProcessInfo[] | { [id: string]: ProcessInfo }
+    processMapOrList: ProcessInfo[] | { [id: string]: ProcessInfo },
+    options?: ExecPipedParallelOptions
   ): Promise<NodeExitInfo[] | { [id: string]: NodeExitInfo }> {
-    const processEntries = Object.entries(processMapOrList);
-    this.logger.notice(`Beginning parallel execution of ${processEntries.length} processes...`);
+    const suppressNotices = !!options?.suppressNotices;
+    const logger = this.logger.withSuppression(suppressNotices);
+
+    let processEntries = Object.entries(processMapOrList);
+    if (suppressNotices) {
+      processEntries = processEntries.map(([k, processInfo]) => {
+        const newProcessInfo = { ...processInfo, options: { suppressNotices, ...processInfo.options } };
+        return [k, newProcessInfo];
+      });
+    }
+
+    logger.notice(`Beginning parallel execution of ${processEntries.length} processes...`);
     let results: NodeExitInfo[];
     try {
       results = unwrapResults(
@@ -162,7 +188,7 @@ export class ProcessExecutor {
         ])
       );
     } finally {
-      this.logger.notice("Finished parallel execution.");
+      logger.notice("Finished parallel execution.");
     }
 
     if (Array.isArray(processMapOrList)) return results;
@@ -171,11 +197,11 @@ export class ProcessExecutor {
   }
 
   private async execPipedInternal(processInfo: ProcessInfo, logPrefix: string): Promise<NodeExitInfo> {
+    const options = this.normalizeOptions(processInfo.options);
     const consoleLike = new PrefixingConsoleLike(this.consoleLike, logPrefix);
-    const logger = new Logger(consoleLike.error);
+    const logger = new StylingLogger(consoleLike.error).withSuppression(options.suppressNotices);
 
     logger.notice(`Starting process: ${formatProcessInvocation(processInfo)}`);
-    const options = this.normalizeOptions(processInfo.options);
 
     const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
       cwd: options.cwd,
@@ -225,8 +251,9 @@ export class ProcessExecutor {
    * @returns A promise resolving to an object with exit status info once the process exits
    */
   async execInTty(processInfo: ProcessInfo): Promise<NodeExitInfo> {
-    this.logger.notice(`Starting process: ${formatProcessInvocation(processInfo)} attached to TTY`);
     const options = this.normalizeOptions(processInfo.options);
+    const logger = this.logger.withSuppression(options.suppressNotices);
+    logger.notice(`Starting process: ${formatProcessInvocation(processInfo)} attached to TTY`);
 
     const childProcess = spawn(processInfo.command, processInfo.args ?? [], {
       cwd: options.cwd,
@@ -236,8 +263,12 @@ export class ProcessExecutor {
 
     const exitInfo = await childProcessCompletion(childProcess);
 
-    this.handleExitInfo(exitInfo, processInfo, options.nonZeroExitCodeHandling, () =>
-      formatNonZeroExitCodeMessage(processInfo, exitInfo.exitCode)
+    this.handleExitInfo(
+      exitInfo,
+      processInfo,
+      options.nonZeroExitCodeHandling,
+      () => formatNonZeroExitCodeMessage(processInfo, exitInfo.exitCode),
+      logger
     );
 
     return exitInfo;
@@ -264,8 +295,9 @@ export class ProcessExecutor {
    * process's exit status info.
    */
   async execToString(processInfo: ProcessInfo): Promise<{ stdout: string; stderr: string } & NodeExitInfo> {
-    this.logger.notice(`Starting process: ${formatProcessInvocation(processInfo)} and capturing output`);
     const options = this.normalizeOptions(processInfo.options);
+    const logger = this.logger.withSuppression(options.suppressNotices);
+    logger.notice(`Starting process: ${formatProcessInvocation(processInfo)} and capturing output`);
 
     let childStdout: string = "";
     let childStderr: string = "";
@@ -287,10 +319,16 @@ export class ProcessExecutor {
       }),
     ]);
 
-    this.handleExitInfo(exitInfo, processInfo, options.nonZeroExitCodeHandling, () => {
-      const nonZeroExitCodeMessage = formatNonZeroExitCodeMessage(processInfo, exitInfo.exitCode);
-      return `${nonZeroExitCodeMessage}\n\nSTDOUT WAS:\n${childStdout}\n\nSTDERR WAS:\n${childStderr}\n\n`;
-    });
+    this.handleExitInfo(
+      exitInfo,
+      processInfo,
+      options.nonZeroExitCodeHandling,
+      () => {
+        const nonZeroExitCodeMessage = formatNonZeroExitCodeMessage(processInfo, exitInfo.exitCode);
+        return `${nonZeroExitCodeMessage}\n\nSTDOUT WAS:\n${childStdout}\n\nSTDERR WAS:\n${childStderr}\n\n`;
+      },
+      logger
+    );
 
     return { stdout: childStdout, stderr: childStderr, ...exitInfo };
   }
@@ -300,7 +338,7 @@ export class ProcessExecutor {
     processInfo: ProcessInfo,
     nonZeroExitCodeHandling: NonZeroExitCodeHandling,
     nonZeroExitCodeMessageCreator: () => string,
-    logger: Logger = this.logger
+    logger: Logger
   ) {
     const { exitCode } = exitInfo;
 
@@ -325,8 +363,9 @@ export class ProcessExecutor {
   private normalizeOptions(options: ProcessInfoOptions | undefined): Required<ProcessInfoOptions> {
     return {
       cwd: options?.cwd ?? process.cwd(),
-      nonZeroExitCodeHandling: options?.nonZeroExitCodeHandling ?? "printErrorAndThrow",
       env: { ...(options?.env ?? process.env) },
+      nonZeroExitCodeHandling: options?.nonZeroExitCodeHandling ?? "printErrorAndThrow",
+      suppressNotices: !!options?.suppressNotices,
     };
   }
 }
@@ -444,14 +483,29 @@ function noticeHighlightStyled(s: string): string {
   return reset(dim(bold(s)));
 }
 
-class Logger {
-  constructor(private readonly logFunction: LogFunction) {}
+interface Logger {
+  notice: LogFunction;
+  error: LogFunction;
+}
+
+class StylingLogger implements Logger {
+  constructor(private readonly logFunction: LogFunction) {
+    this.notice = this.notice.bind(this);
+    this.error = this.error.bind(this);
+  }
 
   notice(message?: any, ...optionalParams: any[]): void {
     this.logFunction(noticeStyled(message), ...optionalParams);
   }
   error(message?: any, ...optionalParams: any[]): void {
     this.logFunction(red(message), ...optionalParams);
+  }
+
+  withSuppression(suppressNotices: boolean): Logger {
+    if (suppressNotices) {
+      return { notice: () => {}, error: this.error };
+    }
+    return this;
   }
 }
 
