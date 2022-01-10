@@ -24,7 +24,7 @@
   ],
   "dependencies": {
     "@types/npm-run": "^5.0.0",
-    "devcmd-cli": "^0.0.7",
+    "devcmd-cli": "^0.0.8",
     "kleur": "^4.1.4",
     "npm-run": "^5.0.1"
   },
